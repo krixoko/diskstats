@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:DiskStats.App.Localization"
+        x:Class="DiskStats.App.BenchmarkWindow"
+        Title="{loc:T Bench_Title}" Icon="/Assets/icon.ico"
+        Width="570" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Page}">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" MaxHeight="700">
+        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,16">
+            <TextBlock Text="{loc:T Bench_Title}" FontSize="21" FontWeight="Bold" />
+            <ComboBox x:Name="DrivePicker" HorizontalAlignment="Stretch"
+                      AutomationProperties.Name="{loc:T Bench_Drive}" />
+            <TextBlock x:Name="FileSizeHint" Text="{loc:T Bench_FileSize}" Classes="label" FontSize="12" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" MaxHeight="430" VerticalScrollBarVisibility="Auto">
+            <Grid ColumnDefinitions="140,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+                <TextBlock Grid.Column="1" Text="{loc:T Bench_Read}" Classes="label" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{loc:T Bench_Write}" Classes="label" HorizontalAlignment="Center" />
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{loc:T Bench_Sequential}" FontWeight="SemiBold" />
+                    <TextBlock Text="1 MiB · Q1T1" Classes="label" FontSize="11" />
+                </StackPanel>
+                <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="SequentialRead" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="1" Grid.Column="2" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="SequentialWrite" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Grid.Row="2" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{loc:T Bench_Random}" FontWeight="SemiBold" />
+                    <TextBlock Text="4 KiB · Q1T1" Classes="label" FontSize="11" />
+                </StackPanel>
+                <Border Grid.Row="2" Grid.Column="1" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="RandomRead" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="ReadDetails" Text="— IOPS" Classes="num label" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        <TextBlock x:Name="ReadLatency" Text="— ms" Classes="num label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="2" Grid.Column="2" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="RandomWrite" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="WriteDetails" Text="— IOPS" Classes="num label" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        <TextBlock x:Name="WriteLatency" Text="— ms" Classes="num label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Grid.Row="3" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{loc:T Bench_Random}" FontWeight="SemiBold" />
+                    <TextBlock Text="64 KiB · Q1T1" Classes="label" FontSize="11" />
+                </StackPanel>
+                <Border Grid.Row="3" Grid.Column="1" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="Random64Read" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="Read64Details" Text="— IOPS" Classes="num label" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        <TextBlock x:Name="Read64Latency" Text="— ms" Classes="num label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Row="3" Grid.Column="2" Background="{DynamicResource Card}" CornerRadius="10" Padding="10,10">
+                    <StackPanel Spacing="2">
+                        <TextBlock x:Name="Random64Write" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Text="MB/s" Classes="label" FontSize="11" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="Write64Details" Text="— IOPS" Classes="num label" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        <TextBlock x:Name="Write64Latency" Text="— ms" Classes="num label" FontSize="11" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Grid.Row="4" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{loc:T Bench_Mixed}" FontWeight="SemiBold" />
+                    <TextBlock Text="4 KiB · Q1T1" Classes="label" FontSize="11" />
+                    <TextBlock Text="{loc:T Bench_MixRatio}" Classes="label" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+                <Border Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Background="{DynamicResource Card}" CornerRadius="10" Padding="16,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <TextBlock x:Name="MixedSpeed" Text="—" Classes="num" FontSize="26" FontWeight="SemiBold" />
+                                <TextBlock Text="MB/s" Classes="label" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{loc:T Bench_Combined}" Classes="label" FontSize="11" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock x:Name="MixedDetails" Text="— IOPS" Classes="num label" FontSize="11" HorizontalAlignment="Right" />
+                            <TextBlock x:Name="MixedLatency" Text="— ms" Classes="num label" FontSize="11" HorizontalAlignment="Right" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Spacing="14" Margin="0,16,0,0">
+            <TextBlock Text="{loc:T Bench_Hint}" Classes="label" FontSize="11" TextWrapping="Wrap" />
+            <StackPanel Spacing="7">
+                <ProgressBar x:Name="Progress" Minimum="0" Maximum="100" Height="4"
+                             AutomationProperties.Name="{loc:T Bench_Progress}" />
+                <TextBlock x:Name="Status" Text="{loc:T Bench_Ready}" Classes="label" FontSize="12"
+                           TextWrapping="Wrap" MinHeight="34" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CloseButton" Content="{loc:T Common_Done}" Classes="quiet" />
+                <Button x:Name="StartButton" Content="{loc:T Bench_Start}" Classes="primary" MinWidth="120" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

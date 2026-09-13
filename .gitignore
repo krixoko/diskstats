@@ -1,0 +1,30 @@
+bin/
+obj/
+*.user
+.vs/
+bench-results/
+publish/
+
+# Ausgaben von packaging/build.ps1: der veroeffentlichte Ordner, das Paket und Zertifikate.
+packaging/app/
+*.msix
+*.msixbundle
+*.cer
+*.pfx
+
+# Lokale Arbeitsunterlagen und doppelte Store-Upload-Archive.
+/.local/
+/store-assets/*.zip
+
+# Testergebnisse, IDE-Zustand und lokale Zugangsdaten.
+TestResults/
+.idea/
+*.suo
+*.userosscache
+*.sln.docstates
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.snk

@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DiskStats.App.Controls"
+             xmlns:loc="using:DiskStats.App.Localization"
+             x:Class="DiskStats.App.Controls.FileTable">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="10">
+        <WrapPanel Orientation="Horizontal">
+            <CheckBox x:Name="Recursive" Content="{loc:T Table_Recursive}" />
+            <Button x:Name="StageSelected" Classes="quiet" Content="{loc:T Clean_Stage}" Margin="12,0" />
+            <TextBlock x:Name="Summary" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </WrapPanel>
+        <TextBlock Grid.Row="1" x:Name="Error" TextWrapping="Wrap" Foreground="DarkRed" />
+            <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                <ScrollViewer x:Name="HeaderScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="0,0,15,0">
+                <Grid ColumnDefinitions="230,110,110,145,90,70,275" Width="1030" Margin="8,0,8,0">
+                    <Button Classes="quiet" Content="{loc:T Table_Name}" Tag="Name" Click="OnSort" />
+                    <Button Grid.Column="1" Classes="quiet" Content="{loc:T Table_Logical}" Tag="Logical" Click="OnSort" />
+                    <Button Grid.Column="2" Classes="quiet" Content="{loc:T Table_Physical}" Tag="Physical" Click="OnSort" />
+                    <Button Grid.Column="3" Classes="quiet" Content="{loc:T Table_Modified}" Tag="Modified" Click="OnSort" />
+                    <Button Grid.Column="4" Classes="quiet" Content="{loc:T Table_Files}" Tag="Files" Click="OnSort" />
+                    <Button Grid.Column="5" Classes="quiet" Content="{loc:T Table_Links}" Tag="Links" Click="OnSort" />
+                    <Button Grid.Column="6" Classes="quiet" Content="{loc:T Table_Path}" Tag="Path" Click="OnSort" />
+                </Grid>
+                </ScrollViewer>
+                <ListBox Grid.Row="1" x:Name="Rows" SelectionMode="Multiple,Toggle"
+                         Background="{DynamicResource Canvas}" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         DoubleTapped="OnOpen" AutomationProperties.Name="{loc:T Table_Title}">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="8,2" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:FileTableRow">
+                            <Grid ColumnDefinitions="230,110,110,145,90,70,275" Width="1030" Height="28">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding LogicalText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding PhysicalText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Text="{Binding ModifiedText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="4" Text="{Binding Files}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="5" Text="{Binding LinksText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="6" Text="{Binding Path}" ToolTip.Tip="{Binding Path}"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+    </Grid>
+</UserControl>

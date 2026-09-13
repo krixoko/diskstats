@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DiskStats.App/DiskStats.App.csproj" />
+    <Project Path="src/DiskStats.Bench/DiskStats.Bench.csproj" />
+    <Project Path="src/DiskStats.Core/DiskStats.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DiskStats.App.Tests/DiskStats.App.Tests.csproj" />
+    <Project Path="tests/DiskStats.Core.Tests/DiskStats.Core.Tests.csproj" />
+  </Folder>
+</Solution>

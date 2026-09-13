@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:DiskStats.App.Localization"
+        x:Class="DiskStats.App.HealthWindow"
+        Title="{loc:T Health_Title}" Icon="/Assets/icon.ico"
+        Width="570" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Page}">
+    <ScrollViewer MaxHeight="700">
+        <StackPanel Margin="24" Spacing="12">
+            <TextBlock Text="{loc:T Health_Title}" FontSize="21" FontWeight="Bold" />
+            <ComboBox x:Name="DiskPicker" HorizontalAlignment="Stretch"
+                      AutomationProperties.Name="{loc:T Health_Disk}" />
+            <TextBlock x:Name="DeviceInfo" Classes="label" FontSize="12" TextWrapping="Wrap" />
+            <Border Background="{DynamicResource Card}" CornerRadius="10" Padding="16,12">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{loc:T Health_WindowsStatus}" Classes="label" FontSize="11" />
+                    <TextBlock x:Name="HealthStatus" Text="—" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock x:Name="NvmeStatus" IsVisible="False" FontWeight="SemiBold" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{loc:T Health_Temperature}" Classes="label" />
+                    <TextBlock x:Name="Temperature" Text="—" Classes="num" FontSize="22" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="{loc:T Health_Wear}" Classes="label" />
+                    <TextBlock x:Name="Wear" Text="—" Classes="num" FontSize="22" />
+                </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+                <TextBlock Text="{loc:T Health_Hours}" Classes="label" />
+                <TextBlock Grid.Column="1" x:Name="PowerOnHours" Text="—" Classes="num" />
+                <TextBlock Grid.Row="1" Text="{loc:T Health_ReadErrors}" Classes="label" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ReadErrors" Text="—" Classes="num" />
+                <TextBlock Grid.Row="2" Text="{loc:T Health_WriteErrors}" Classes="label" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="WriteErrors" Text="—" Classes="num" />
+                <TextBlock Grid.Row="3" Text="{loc:T Health_UncorrectedRead}" Classes="label" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="UncorrectedRead" Text="—" Classes="num" />
+                <TextBlock Grid.Row="4" Text="{loc:T Health_UncorrectedWrite}" Classes="label" />
+                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="UncorrectedWrite" Text="—" Classes="num" />
+            </Grid>
+            <Grid x:Name="NvmeCounters" IsVisible="False" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="10">
+                <TextBlock Text="{loc:T Health_MediaErrors}" Classes="label" />
+                <TextBlock Grid.Column="1" x:Name="MediaErrors" Text="—" Classes="num" />
+                <TextBlock Grid.Row="1" Text="{loc:T Health_UnsafeShutdowns}" Classes="label" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UnsafeShutdowns" Text="—" Classes="num" />
+            </Grid>
+            <TextBlock x:Name="Availability" Classes="label" FontSize="11" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:T Health_Hint}" Classes="label" FontSize="11" TextWrapping="Wrap" />
+            <StackPanel Spacing="7">
+                <ProgressBar x:Name="Loading" IsVisible="False" IsIndeterminate="True" Height="4"
+                             AutomationProperties.Name="{loc:T Health_Loading}" />
+                <TextBlock x:Name="Status" Text="{loc:T Health_Loading}" Classes="label" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CloseButton" Content="{loc:T Common_Done}" Classes="quiet" />
+                <Button x:Name="RefreshButton" Content="{loc:T Health_Refresh}" Classes="primary" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

@@ -1,0 +1,139 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:DiskStats.App.Localization"
+        x:Class="DiskStats.App.SettingsWindow"
+        Title="{loc:T Set_Title}"
+        Icon="/Assets/icon.ico"
+        Width="500" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Page}">
+
+    <ScrollViewer MaxHeight="740">
+    <StackPanel Margin="22,20" Spacing="18">
+
+        <TextBlock Text="{loc:T Set_Title}" FontSize="19" FontWeight="Bold" />
+
+        <!-- Zwischenstaende -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="9">
+                <TextBlock Classes="eyebrow" Text="{loc:T Cache_Title}" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" x:Name="CacheHint" Classes="label" FontSize="11"
+                               TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="quiet" x:Name="CacheClear"
+                            Content="{loc:T Cache_Clear}" Padding="12,6" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Rechte -->
+        <Border x:Name="ElevationCard" Background="{DynamicResource Card}" CornerRadius="11"
+                Padding="15,13" IsVisible="False">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,12,0">
+                    <TextBlock Text="{loc:T Elev_Setting}" FontSize="12.5" TextWrapping="Wrap" />
+                    <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                               Text="{loc:T Elev_SettingHint}" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" x:Name="ElevationSwitch" OnContent="" OffContent=""
+                              VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Sprache -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="9">
+                <TextBlock Classes="eyebrow" Text="{loc:T Set_Language}" />
+                <StackPanel x:Name="LanguageGroup" Orientation="Horizontal" Spacing="2" />
+                <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                           Text="{loc:T Set_LanguageHint}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Thema -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="9">
+                <TextBlock Classes="eyebrow" Text="{loc:T Set_Theme}" />
+                <StackPanel x:Name="ThemeGroup" Orientation="Horizontal" Spacing="2" />
+            </StackPanel>
+        </Border>
+
+        <!-- Darstellung -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="13">
+                <TextBlock Classes="eyebrow" Text="{loc:T Set_Appearance}" />
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,12,0">
+                        <TextBlock Text="{loc:T Set_Motion}" FontSize="12.5" />
+                        <TextBlock Classes="label" FontSize="11"
+                                   Text="{loc:T Set_MotionHint}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" x:Name="AnimationSwitch" OnContent="" OffContent=""
+                                  VerticalAlignment="Center" />
+                </Grid>
+
+                <StackPanel Spacing="7">
+                    <StackPanel Spacing="1">
+                        <TextBlock Text="{loc:T Set_Detail}" FontSize="12.5" />
+                        <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                                   Text="{loc:T Set_DetailHint}" />
+                    </StackPanel>
+                    <StackPanel x:Name="DetailGroup" Orientation="Horizontal" Spacing="2" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Scan -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="11">
+                <TextBlock Classes="eyebrow" Text="{loc:T Set_Scan}" />
+                <StackPanel x:Name="ScanMethodGroup" Orientation="Horizontal" Spacing="2" />
+                <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap" Text="{loc:T Scan_MethodHint}" />
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,12,0">
+                        <TextBlock Text="{loc:T Set_AutoWorkers}" FontSize="12.5" />
+                        <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                                   Text="{loc:T Set_AutoWorkersHint}" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" x:Name="AutoWorkers" OnContent="" OffContent=""
+                                  VerticalAlignment="Center" />
+                </Grid>
+
+                <Grid x:Name="WorkerRow" ColumnDefinitions="*,Auto" IsVisible="False">
+                    <Slider Grid.Column="0" x:Name="WorkerSlider" Minimum="1" Maximum="32"
+                            TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="1" x:Name="WorkerValue" Classes="num" FontSize="13"
+                               FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="26"
+                               TextAlignment="Right" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Einheiten -->
+        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="15,13">
+            <StackPanel Spacing="9">
+                <TextBlock Classes="eyebrow" Text="{loc:T Set_Sizes}" />
+                <StackPanel x:Name="SizeGroup" Orientation="Horizontal" Spacing="2" />
+                <TextBlock x:Name="SizeHint" Classes="label" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="{loc:T Set_License}" Classes="label" FontSize="11" TextWrapping="Wrap" />
+            <HyperlinkButton Content="{loc:T Set_Privacy}" NavigateUri="https://diskstats-privacy.krokkono.chatgpt.site/" />
+            <HyperlinkButton Content="{loc:T Set_Support}" NavigateUri="mailto:kroxoko@gmail.com" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0" Classes="label" FontSize="11" VerticalAlignment="Center"
+                       Text="{loc:T Set_Immediate}" />
+            <Button Grid.Column="1" Classes="primary" x:Name="CloseButton" Content="{loc:T Common_Done}"
+                    HorizontalAlignment="Right" />
+        </Grid>
+    </StackPanel>
+    </ScrollViewer>
+</Window>

@@ -1,0 +1,565 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:DiskStats.App.Localization"
+        xmlns:app="clr-namespace:DiskStats.App"
+        xmlns:rendering="clr-namespace:DiskStats.App.Rendering"
+        xmlns:controls="clr-namespace:DiskStats.App.Controls"
+        x:Class="DiskStats.App.MainWindow"
+        Title="DiskStats"
+        Icon="/Assets/icon.ico"
+        Width="1180" Height="740"
+        MinWidth="880" MinHeight="580"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Page}">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Hauptbereich -->
+        <Grid Grid.Row="0" ColumnDefinitions="238,*,304">
+
+            <!-- Seitenleiste -->
+            <Border Grid.Column="0" Background="{DynamicResource Panel}"
+                    BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0">
+              <Grid RowDefinitions="*,Auto">
+                <ScrollViewer Grid.Row="0">
+                    <StackPanel Margin="14,16" Spacing="18">
+
+                        <!-- Ganz oben: Ein anderes Ziel zu waehlen ist der Anfang jeder
+                             Sitzung, nicht ihr Abschluss. Die Laufwerke darunter sind die
+                             haeufigsten Ziele, der Knopf daneben alle uebrigen. -->
+                        <Button Classes="quiet" x:Name="BrowseButton"
+                                Padding="11,9" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                ToolTip.Tip="{loc:T Side_BrowseTip}">
+                            <StackPanel Orientation="Horizontal" Spacing="9">
+                                <rendering:IconPresenter IconSize="17" VerticalAlignment="Center"
+                                                         Brush="{DynamicResource Ink}"
+                                                         Data="{x:Static rendering:Icons.FolderOpen}" />
+                                <TextBlock Text="{loc:T Side_Browse}" FontSize="12.5"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="eyebrow" Text="{loc:T Side_Drives}" Margin="3,0,0,0" />
+                            <ItemsControl x:Name="DriveList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:DriveEntry">
+                                        <Button Classes="row" Tag="{Binding Path}" Click="OnDriveClicked"
+                                                Margin="0,0,0,2" ToolTip.Tip="{Binding Kind}">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <rendering:IconPresenter Grid.Column="0" IconSize="15"
+                                                            Margin="0,0,9,0" VerticalAlignment="Center"
+                                                            Brush="{DynamicResource InkMuted}"
+                                                            Data="{Binding Icon}" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                                               FontSize="12.5" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Classes="num label"
+                                                               Text="{Binding FreeText}"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                                <Border Height="5" CornerRadius="2.5"
+                                                        Background="{DynamicResource Track}">
+                                                    <Border HorizontalAlignment="Left" CornerRadius="2.5"
+                                                            Background="{Binding Fill}"
+                                                            Width="{Binding UsedBarWidth}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="7" x:Name="QuickWinsBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="3,0,0,0">
+                                <TextBlock Grid.Column="0" Classes="eyebrow" Text="{loc:T Side_QuickWins}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" x:Name="QuickWinsTotal" Classes="num"
+                                           FontSize="12" FontWeight="SemiBold" />
+                            </Grid>
+
+                            <ItemsControl x:Name="QuickWinsList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:QuickWinRow">
+                                        <Button Classes="row" Padding="8,7" Margin="0,0,0,2"
+                                                Tag="{Binding Index}" Click="OnQuickWinClicked"
+                                                ToolTip.Tip="{Binding Hint}">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Border Grid.Column="0" Width="8" Height="8"
+                                                        CornerRadius="4" Margin="0,0,9,0"
+                                                        VerticalAlignment="Center"
+                                                        Background="{Binding Fill}" />
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12.5"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Detail}" Classes="label"
+                                                               FontSize="10.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Classes="num"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"
+                                                           Margin="6,0,0,0"
+                                                           Text="{Binding SizeText}" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="7" x:Name="ChangesBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="3,0,0,0">
+                                <TextBlock Grid.Column="0" Classes="eyebrow"
+                                           Text="{loc:T Side_Changes}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" x:Name="ChangesTotal" Classes="num"
+                                           FontSize="12" FontWeight="SemiBold" />
+                            </Grid>
+
+                            <TextBlock x:Name="ChangesSince" Classes="label" FontSize="10.5"
+                                       Margin="3,-4,0,0" TextTrimming="CharacterEllipsis" />
+
+                            <ItemsControl x:Name="ChangesList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:ChangeRow">
+                                        <Button Classes="row" Padding="8,7" Margin="0,0,0,2"
+                                                Tag="{Binding Path}" Click="OnChangeClicked"
+                                                ToolTip.Tip="{Binding Path}">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Border Grid.Column="0" Width="8" Height="8"
+                                                        CornerRadius="4" Margin="0,0,9,0"
+                                                        VerticalAlignment="Center"
+                                                        Background="{Binding Fill}" />
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Detail}" Classes="label"
+                                                               FontSize="10.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Classes="num"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" Margin="6,0,0,0"
+                                                           Text="{Binding DeltaText}" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="7" x:Name="DuplicatesBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="3,0,0,0">
+                                <TextBlock Grid.Column="0" Classes="eyebrow"
+                                           Text="{loc:T Side_Duplicates}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" x:Name="DuplicatesTotal" Classes="num"
+                                           FontSize="12" FontWeight="SemiBold" />
+                            </Grid>
+
+                            <Button Classes="quiet" x:Name="DuplicatesButton" Padding="9,8"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                    ToolTip.Tip="{loc:T Dup_Hint}" Click="OnFindDuplicatesClicked">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <rendering:IconPresenter IconSize="15" VerticalAlignment="Center"
+                                                             Brush="{DynamicResource InkMuted}"
+                                                             Data="{x:Static rendering:Icons.Layers}" />
+                                    <TextBlock x:Name="DuplicatesLabel" Text="{loc:T Dup_Search}"
+                                               FontSize="12.5" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <ItemsControl x:Name="DuplicatesList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:DuplicateRow">
+                                        <Button Classes="row" Padding="8,7" Margin="0,0,0,2"
+                                                Tag="{Binding Index}" Click="OnDuplicateClicked">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Border Grid.Column="0" Width="8" Height="8"
+                                                        CornerRadius="4" Margin="0,0,9,0"
+                                                        VerticalAlignment="Center"
+                                                        Background="{Binding Fill}" />
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Detail}" Classes="label"
+                                                               FontSize="10.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Classes="num"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" Margin="6,0,0,0"
+                                                           Text="{Binding SizeText}" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8" x:Name="FileTypesBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="3,0,0,0">
+                                <TextBlock Grid.Column="0" Classes="eyebrow" Text="{loc:T Side_FileTypes}"
+                                           VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Background="{DynamicResource Card}"
+                                        CornerRadius="7" Padding="2">
+                                    <StackPanel x:Name="TypeModeSwitch" Orientation="Horizontal"
+                                                Spacing="1" />
+                                </Border>
+                            </Grid>
+                            <Border x:Name="FileTypeBar" Height="7" CornerRadius="3.5"
+                                    Background="{DynamicResource Track}" ClipToBounds="True">
+                                <StackPanel x:Name="FileTypeSegments" Orientation="Horizontal" />
+                            </Border>
+                            <ItemsControl x:Name="FileTypeList" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:TypeEntry">
+                                        <Button Classes="row" Padding="3,4" Margin="0,0,0,1"
+                                                Tag="{Binding Key}" Click="OnTypeClicked">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Border Grid.Column="0" Width="8" Height="8"
+                                                        CornerRadius="4" Background="{Binding Fill}"
+                                                        VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="2" Classes="num label"
+                                                           Text="{Binding SizeText}" Margin="6,0,0,0" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Fusszeile: nur noch der Themenwechsel, eine Einstellung und kein Weg -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="14,8,14,14" ColumnSpacing="8">
+                    <Button Grid.Column="1" Classes="quiet" x:Name="ThemeButton" Width="42"
+                            Padding="0" ToolTip.Tip="{loc:T Side_ThemeTip}"
+                            AutomationProperties.Name="{loc:T Side_ThemeTip}">
+                        <rendering:IconPresenter x:Name="ThemeGlyph" IconSize="17"
+                                                 Brush="{DynamicResource Ink}"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+              </Grid>
+            </Border>
+
+            <!-- Mitte: Titel, Umschalter, Karte -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Background="{DynamicResource Page}">
+
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="22,14,20,10">
+                    <Button Grid.Column="0" Classes="quiet" x:Name="UpButton" IsVisible="False"
+                            Padding="9,6" Margin="0,8,8,0" VerticalAlignment="Top"
+                            ToolTip.Tip="{loc:T Head_UpTip}"
+                            AutomationProperties.Name="{loc:T Head_UpTip}">
+                        <rendering:IconPresenter IconSize="16" Brush="{DynamicResource Ink}"
+                                                 Data="{x:Static rendering:Icons.ArrowLeft}" />
+                    </Button>
+
+                    <controls:DriveBadge Grid.Column="1" x:Name="Badge"
+                                         Margin="0,3,13,0" VerticalAlignment="Top" />
+
+                    <StackPanel Grid.Column="2" Spacing="2">
+                        <!-- Wo man ist und wie man zurueckspringt, ohne mehrfach zu klicken -->
+                        <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Disabled" Margin="-6,0,0,0">
+                            <StackPanel x:Name="Breadcrumb" Orientation="Horizontal" Spacing="0" />
+                        </ScrollViewer>
+                        <TextBlock x:Name="TitleText" Text="DiskStats" FontSize="26" FontWeight="Bold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="StatsText" Classes="num label" FontSize="12"
+                                   Text="{loc:T Head_NothingScanned}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="StorageStatsText" Classes="label" FontSize="11" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBox Grid.Column="3" x:Name="SearchBox" Width="230" Height="32"
+                             VerticalAlignment="Top" Margin="14,6,0,0" FontSize="12"
+                             VerticalContentAlignment="Center" Padding="11,0"
+                             PlaceholderText="{loc:T Head_Search}"
+                             AutomationProperties.Name="{loc:T A11y_Search}" />
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="22,0,20,12">
+                    <Border Grid.Column="0" Background="{DynamicResource Card}" CornerRadius="9"
+                            Padding="3" VerticalAlignment="Center">
+                        <StackPanel x:Name="ViewSwitcher" Orientation="Horizontal" Spacing="1" />
+                    </Border>
+
+                    <Border Grid.Column="2" Background="{DynamicResource Card}" CornerRadius="9"
+                            Padding="3" VerticalAlignment="Center">
+                        <StackPanel x:Name="ColorSwitcher" Orientation="Horizontal" Spacing="1" />
+                    </Border>
+                </Grid>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="22,0,20,8">
+                    <Button x:Name="FilterButton" Classes="quiet" Content="{loc:T Filter_Title}" />
+                    <Button x:Name="RefreshFolderButton" Classes="quiet" Content="{loc:T Refresh_Folder}" />
+                    <CheckBox x:Name="WatchToggle" Content="{loc:T Watch_Title}" />
+                </StackPanel>
+                <Border Grid.Row="3" Background="{DynamicResource Canvas}" CornerRadius="12"
+                        Margin="20,0,20,18" ClipToBounds="True">
+                    <Panel>
+                        <rendering:ChartView x:Name="Chart" Margin="8"
+                                             AutomationProperties.Name="{loc:T A11y_MapEmpty}" />
+                        <controls:FileTable x:Name="FilesTable" IsVisible="False" />
+                        <TextBlock x:Name="EmptyHint" Classes="label"
+                                   Text="{loc:T Head_StartHint}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                        <!-- Treffer liegen ueber der Karte, statt sie zu ersetzen: der
+                             Zusammenhang bleibt sichtbar, sobald man die Suche schliesst. -->
+                        <Border x:Name="SearchPanel" IsVisible="False"
+                                Background="{DynamicResource Canvas}" CornerRadius="12">
+                            <Grid RowDefinitions="Auto,*">
+                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,14,14,8">
+                                    <TextBlock Grid.Column="0" x:Name="SearchSummary"
+                                               Classes="eyebrow" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Classes="quiet" x:Name="SearchClose"
+                                            Content="{loc:T Common_Close}" Padding="10,4" FontSize="11.5" />
+                                </Grid>
+
+                                <ScrollViewer Grid.Row="1" Padding="10,0,10,10">
+                                    <ItemsControl x:Name="SearchResults">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="app:SearchRow">
+                                                <Button Classes="row" Tag="{Binding Node}"
+                                                        Click="OnSearchHitClicked" Padding="10,7"
+                                                        Margin="0,0,0,1">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <Border Grid.Column="0" Width="7" Height="7"
+                                                                CornerRadius="3.5" Margin="0,0,10,0"
+                                                                VerticalAlignment="Center"
+                                                                Background="{Binding Fill}" />
+                                                        <StackPanel Grid.Column="1" Spacing="1">
+                                                            <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Location}"
+                                                                       Classes="label" FontSize="10.5"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Classes="num"
+                                                                   FontSize="12" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="10,0,0,0"
+                                                                   Text="{Binding SizeText}" />
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Panel>
+                </Border>
+            </Grid>
+
+            <!-- Inspector -->
+            <Border Grid.Column="2" Background="{DynamicResource Panel}"
+                    BorderBrush="{DynamicResource Hairline}" BorderThickness="1,0,0,0">
+                <ScrollViewer>
+                    <StackPanel Margin="18,18" Spacing="16">
+
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                <Border Grid.Column="0" Background="{DynamicResource Card}"
+                                        CornerRadius="8" Padding="7,3" VerticalAlignment="Center">
+                                    <TextBlock Classes="eyebrow" x:Name="InspectorKind" Text="{loc:T Insp_Selection}" />
+                                </Border>
+                                <Button Grid.Column="2" Classes="quiet" x:Name="BenchmarkButton"
+                                        Width="34" Height="30" Padding="0" Margin="0,0,4,0"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        ToolTip.Tip="{loc:T Bench_Title}" AutomationProperties.Name="{loc:T Bench_Title}">
+                                    <rendering:IconPresenter IconSize="16" Brush="{DynamicResource InkMuted}"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                             Data="{x:Static rendering:Icons.Gauge}" />
+                                </Button>
+                                <Button Grid.Column="3" Classes="quiet" x:Name="HealthButton"
+                                        Width="34" Height="30" Padding="0" Margin="0,0,4,0"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        ToolTip.Tip="{loc:T Health_Title}" AutomationProperties.Name="{loc:T Health_Title}">
+                                    <rendering:IconPresenter IconSize="16" Brush="{DynamicResource InkMuted}"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                             Data="{x:Static rendering:Icons.HeartPulse}" />
+                                </Button>
+                                <Button Grid.Column="4" Classes="quiet" x:Name="SettingsButton"
+                                        Width="34" Height="30" Padding="0"
+                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        ToolTip.Tip="{loc:T Set_Title}"
+                                        AutomationProperties.Name="{loc:T Set_Title}">
+                                    <rendering:IconPresenter IconSize="16"
+                                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                             Brush="{DynamicResource InkMuted}"
+                                                             Data="{x:Static rendering:Icons.Settings}" />
+                                </Button>
+                            </Grid>
+                            <TextBlock x:Name="InspectorName" Text="{loc:T Insp_Nothing}"
+                                       FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock x:Name="InspectorPath" Classes="label" FontSize="11"
+                                       TextWrapping="Wrap" Text="" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="2">
+                            <TextBlock x:Name="InspectorSize" Classes="num" FontSize="30"
+                                       FontWeight="Bold" Text="—" />
+                            <TextBlock x:Name="InspectorStorage" Classes="label" TextWrapping="Wrap" />
+                            <TextBlock x:Name="InspectorShare" Classes="label" Text="" />
+                        </StackPanel>
+
+                        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="14,12">
+                            <StackPanel Spacing="9">
+                                <TextBlock Classes="eyebrow" Text="{loc:T Insp_Details}" />
+                                <ItemsControl x:Name="DetailRows">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="app:DetailRow">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+                                                <TextBlock Grid.Column="0" Classes="label"
+                                                           Text="{Binding Label}" />
+                                                <TextBlock Grid.Column="1" Classes="num"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Text="{Binding Value}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{DynamicResource Card}" CornerRadius="11" Padding="14,12"
+                                x:Name="LargestCard">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="eyebrow" Text="{loc:T Insp_Largest}" />
+                                    <TextBlock Grid.Column="1" Classes="label" x:Name="LargestCount"
+                                               FontSize="10.5" />
+                                </Grid>
+                                <ItemsControl x:Name="TopChildren">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="app:ChildEntry">
+                                            <StackPanel Spacing="4" Margin="0,0,0,9">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <Border Grid.Column="0" Width="7" Height="7"
+                                                            CornerRadius="3.5" Background="{Binding Fill}"
+                                                            VerticalAlignment="Center" Margin="0,0,7,0" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                               FontSize="11.5"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="2" Classes="num label"
+                                                               Text="{Binding SizeText}"
+                                                               Margin="8,0,0,0" />
+                                                </Grid>
+                                                <Border Height="3" CornerRadius="1.5" Margin="14,0,0,0"
+                                                        Background="{DynamicResource Track}">
+                                                    <Border HorizontalAlignment="Left" CornerRadius="1.5"
+                                                            Background="{Binding Fill}"
+                                                            Width="{Binding BarWidth}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock x:Name="NoChildrenHint" Classes="label"
+                                           Text="{loc:T Insp_NoChildren}" IsVisible="False" />
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Button Grid.Column="0" Classes="quiet" x:Name="RevealButton"
+                                    Content="{loc:T Insp_Reveal}" IsEnabled="False" />
+                            <Button Grid.Column="1" Classes="quiet" x:Name="CopyPathButton"
+                                    Content="{loc:T Insp_CopyPath}" IsEnabled="False" />
+                        </Grid>
+
+                        <Button Classes="quiet" x:Name="StageButton" IsEnabled="False"
+                                Content="{loc:T Clean_Stage}" HorizontalAlignment="Stretch" />
+
+                        <Border x:Name="CleanupCard" IsVisible="False"
+                                Background="{DynamicResource Card}" CornerRadius="11" Padding="14,12">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="eyebrow" Text="{loc:T Clean_Title}" />
+                                    <TextBlock Grid.Column="1" x:Name="CleanupTotal" Classes="num"
+                                               FontSize="12" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ItemsControl x:Name="CleanupItems">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="app:CleanupRow">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,5">
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                           FontSize="11.5"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Classes="num label"
+                                                           Text="{Binding SizeText}" Margin="8,0,4,0"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="2" Classes="crumb" Padding="5,3"
+                                                        Tag="{Binding Path}" Click="OnUnstageClicked"
+                                                        AutomationProperties.Name="{loc:T A11y_Unstage}">
+                                                    <rendering:IconPresenter IconSize="12"
+                                                            Brush="{DynamicResource InkMuted}"
+                                                            Data="{x:Static rendering:Icons.X}" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0" Classes="quiet" x:Name="CleanupClear"
+                                            Content="{loc:T Clean_Clear}" Padding="12,7" />
+                                    <Button Grid.Column="1" Classes="primary" x:Name="CleanupRun"
+                                            Content="{loc:T Clean_Delete}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Statusleiste -->
+        <Border Grid.Row="1" Background="{DynamicResource Panel}"
+                BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="16,9">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="quiet" x:Name="CancelButton" Content="{loc:T Common_Cancel}"
+                        Padding="10,4" FontSize="11.5" Margin="0,0,12,0" IsVisible="False" />
+                <TextBlock Grid.Column="1" x:Name="StatusText" Classes="num label"
+                           VerticalAlignment="Center" Text="{loc:T Common_Ready}" />
+                <StackPanel Grid.Column="2" x:Name="AgeLegend" Orientation="Horizontal"
+                            Spacing="7" IsVisible="False" VerticalAlignment="Center">
+                    <TextBlock Classes="label" Text="{loc:T Color_Fresh}" />
+                    <Border Width="130" Height="8" CornerRadius="4" ClipToBounds="True">
+                        <StackPanel x:Name="AgeRampBands" Orientation="Horizontal" />
+                    </Border>
+                    <TextBlock Classes="label" Text="{loc:T Color_Old}" />
+                </StackPanel>
+
+                <ItemsControl Grid.Column="2" x:Name="Legend">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="13" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="app:LegendEntry">
+                            <StackPanel Orientation="Horizontal" Spacing="5"
+                                        VerticalAlignment="Center">
+                                <Border Width="8" Height="8" CornerRadius="4"
+                                        Background="{Binding Fill}" VerticalAlignment="Center" />
+                                <TextBlock Classes="label" Text="{Binding Name}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

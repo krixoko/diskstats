@@ -1,0 +1,167 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DiskStats.App.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <!--
+                  Papier: warmes Cremeweiss statt Reinweiss. Die Flaechen der Karte sind
+                  Pastelltoene, und ein neutralgrauer Grund liesse sie kalt und schmutzig
+                  wirken. Der leicht gelbliche Untergrund traegt sie.
+                -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Page"          Color="#FAF7F0" />
+                    <SolidColorBrush x:Key="Panel"         Color="#FCFAF5" />
+                    <SolidColorBrush x:Key="Card"          Color="#F4F0E7" />
+                    <SolidColorBrush x:Key="Canvas"        Color="#FBF9F3" />
+                    <SolidColorBrush x:Key="Hairline"      Color="#E8E2D6" />
+                    <SolidColorBrush x:Key="Ink"           Color="#2A2724" />
+                    <SolidColorBrush x:Key="InkMuted"      Color="#7A736A" />
+                    <SolidColorBrush x:Key="InkFaint"      Color="#A9A196" />
+                    <SolidColorBrush x:Key="Solid"         Color="#1C1A17" />
+                    <SolidColorBrush x:Key="SolidInk"      Color="#FBF9F3" />
+                    <SolidColorBrush x:Key="Track"         Color="#EAE4D8" />
+                    <SolidColorBrush x:Key="Selected"      Color="#EDE7DA" />
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Page"          Color="#1A1815" />
+                    <SolidColorBrush x:Key="Panel"         Color="#211E1A" />
+                    <SolidColorBrush x:Key="Card"          Color="#282420" />
+                    <SolidColorBrush x:Key="Canvas"        Color="#151310" />
+                    <SolidColorBrush x:Key="Hairline"      Color="#33302B" />
+                    <SolidColorBrush x:Key="Ink"           Color="#ECE7DE" />
+                    <SolidColorBrush x:Key="InkMuted"      Color="#9B9387" />
+                    <SolidColorBrush x:Key="InkFaint"      Color="#6B645A" />
+                    <SolidColorBrush x:Key="Solid"         Color="#ECE7DE" />
+                    <SolidColorBrush x:Key="SolidInk"      Color="#1A1815" />
+                    <SolidColorBrush x:Key="Track"         Color="#33302B" />
+                    <SolidColorBrush x:Key="Selected"      Color="#302C27" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+
+        <!-- Zahlen mit Tabellenziffern: Spalten fluchten, Werte lassen sich vergleichen. -->
+        <Style Selector="TextBlock.num">
+            <Setter Property="FontFeatures" Value="tnum=1" />
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="FontSize" Value="11.5" />
+        </Style>
+
+        <Style Selector="TextBlock.eyebrow">
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="0.9" />
+        </Style>
+
+        <!-- Flaechiger Knopf ohne Rahmen: die Oberflaeche lebt von Flaechen, nicht von Linien. -->
+        <Style Selector="Button.quiet">
+            <Setter Property="Background" Value="{DynamicResource Card}" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Selected}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource Solid}" />
+            <Setter Property="Foreground" Value="{DynamicResource SolidInk}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Solid}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource SolidInk}" />
+            <Setter Property="Opacity" Value="0.88" />
+        </Style>
+
+        <!-- Segmentschalter: die aktive Wahl traegt eine Flaeche, die uebrigen bleiben leer. -->
+        <Style Selector="Button.segment">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="11.5" />
+        </Style>
+        <Style Selector="Button.segment:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Selected}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="Button.segment.active">
+            <Setter Property="Foreground" Value="{DynamicResource SolidInk}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.segment.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Solid}" />
+        </Style>
+        <Style Selector="Button.segment.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Solid}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource SolidInk}" />
+        </Style>
+
+        <!-- Zeile in der Seitenleiste: ganze Breite, Flaeche nur beim Ueberfahren. -->
+        <Style Selector="Button.row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Card}" />
+        </Style>
+
+        <!-- Breadcrumb: unauffaellig, die aktuelle Station traegt mehr Gewicht -->
+        <Style Selector="Button.crumb">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
+        <Style Selector="Button.crumb:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Card}" />
+            <Setter Property="TextBlock.Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="Button.crumb.here">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{DynamicResource Card}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </Application.Styles>
+</Application>

@@ -1,0 +1,136 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:DiskStats.App.Localization"
+        xmlns:app="clr-namespace:DiskStats.App"
+        xmlns:rendering="clr-namespace:DiskStats.App.Rendering"
+        x:Class="DiskStats.App.FolderPickerWindow"
+        Title="{loc:T Pick_Title}"
+        Icon="/Assets/icon.ico"
+        Width="820" Height="560"
+        MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Page}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Pfadleiste -->
+        <Border Grid.Row="0" Background="{DynamicResource Panel}"
+                BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,0,1" Padding="14,11">
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Grid.Column="0" Classes="quiet" x:Name="UpButton" Padding="9,6"
+                        Margin="0,0,10,0" ToolTip.Tip="{loc:T Pick_Up}"
+                            AutomationProperties.Name="{loc:T Pick_Up}">
+                    <rendering:IconPresenter IconSize="15" Brush="{DynamicResource Ink}"
+                                             Data="{x:Static rendering:Icons.ArrowUp}" />
+                </Button>
+                <Border Grid.Column="1" Background="{DynamicResource Card}" CornerRadius="9"
+                        Padding="12,8">
+                    <TextBlock x:Name="PathText" Classes="num" FontSize="12.5"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Laufwerke links, Ordner rechts -->
+        <Grid Grid.Row="1" ColumnDefinitions="228,*">
+
+            <Border Grid.Column="0" Background="{DynamicResource Panel}"
+                    BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0">
+                <ScrollViewer>
+                    <StackPanel Margin="12,14" Spacing="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="eyebrow" Text="{loc:T Side_Drives}" Margin="3,0,0,0" />
+                            <ItemsControl x:Name="DriveList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:DriveEntry">
+                                        <Button Classes="row" Tag="{Binding Path}"
+                                                Click="OnPlaceClicked" Margin="0,0,0,2"
+                                                ToolTip.Tip="{Binding Kind}">
+                                            <StackPanel Spacing="5">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <rendering:IconPresenter Grid.Column="0" IconSize="15"
+                                                            Margin="0,0,9,0" VerticalAlignment="Center"
+                                                            Brush="{DynamicResource InkMuted}"
+                                                            Data="{Binding Icon}" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                                               FontSize="12.5" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Classes="num label"
+                                                               Text="{Binding FreeText}"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                                <Border Height="5" CornerRadius="2.5"
+                                                        Background="{DynamicResource Track}">
+                                                    <Border HorizontalAlignment="Left" CornerRadius="2.5"
+                                                            Background="{Binding Fill}"
+                                                            Width="{Binding UsedBarWidth}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Classes="eyebrow" Text="{loc:T Pick_Shortcuts}" Margin="3,0,0,4" />
+                            <ItemsControl x:Name="PlaceList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="app:FolderEntry">
+                                        <Button Classes="row" Tag="{Binding Path}"
+                                                Click="OnPlaceClicked" Padding="9,6">
+                                            <TextBlock Text="{Binding Name}" FontSize="12.5" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Panel Grid.Column="1">
+                <ScrollViewer Padding="12,10">
+                    <ItemsControl x:Name="FolderList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="app:FolderEntry">
+                                <Button Classes="row" Tag="{Binding Path}" Padding="10,8"
+                                        Click="OnFolderClicked" DoubleTapped="OnFolderOpened"
+                                        Margin="0,0,0,1">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <rendering:IconPresenter Grid.Column="0" IconSize="16"
+                                              Margin="0,0,11,0" VerticalAlignment="Center"
+                                              Brush="{DynamicResource InkMuted}"
+                                              Data="{x:Static rendering:Icons.Folder}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12.5"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <TextBlock x:Name="EmptyNote" Classes="label" IsVisible="False"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Panel>
+        </Grid>
+
+        <!-- Fußzeile -->
+        <Border Grid.Row="2" Background="{DynamicResource Panel}"
+                BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="14,11">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Classes="eyebrow" Text="{loc:T Insp_Selection}" />
+                    <TextBlock x:Name="ChoiceText" Classes="num" FontSize="12"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="quiet" x:Name="CancelButton" Content="{loc:T Common_Cancel}"
+                        Margin="12,0,8,0" />
+                <Button Grid.Column="2" Classes="primary" x:Name="ChooseButton" Content="{loc:T Pick_Scan}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

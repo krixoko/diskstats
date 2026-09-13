@@ -1,0 +1,3 @@
+app/
+*.msix
+microsoft.system.package.metadata/

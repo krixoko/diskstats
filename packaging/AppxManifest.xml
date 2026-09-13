@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  Paketbeschreibung fuer die Auslieferung ueber den Microsoft Store.
+
+  Bewusst OHNE broadFileSystemAccess: Diese Faehigkeit gilt fuer Apps im AppContainer. Eine
+  als runFullTrust paketierte Desktop-Anwendung laeuft mit dem gewoehnlichen Token des
+  Benutzers und damit mit dessen Dateirechten. Ob das wirklich so ist, prueft die Probe —
+  die Annahme allein traegt keine Architekturentscheidung.
+-->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap rescap">
+
+  <!--
+    ACHTUNG: Diese drei Angaben muessen aus dem Partner Center kommen, bevor eingereicht wird.
+    Publisher muss buchstabengleich dem dortigen Konto entsprechen, sonst weist die
+    Zertifizierung das Paket ab. Version muss zu <Version> in Directory.Build.props passen.
+    build.ps1 laesst sich mit -Store nicht ausfuehren, solange hier PLATZHALTER steht.
+  -->
+  <Identity Name="RINGPAPERS.DiskStats"
+            Publisher="CN=13A09468-7E0C-4DE7-B0BE-BACA98B7C055"
+            Version="1.1.0.0"
+            ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>DiskStats</DisplayName>
+    <PublisherDisplayName>RINGPAPERS</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop"
+                        MinVersion="10.0.17763.0"
+                        MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <!-- Die Oberflaeche ist zweisprachig; die erste Sprache ist die Standardsprache des Pakets. -->
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="de-de" />
+  </Resources>
+
+  <Applications>
+    <Application Id="DiskStats"
+                 Executable="app\DiskStats.App.exe"
+                 EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="DiskStats"
+                          Description="See where your disk space goes."
+                          BackgroundColor="transparent"
+                          Square150x150Logo="Assets\Square150x150Logo.png"
+                          Square44x44Logo="Assets\Square44x44Logo.png" />
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

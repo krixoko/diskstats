@@ -34,6 +34,8 @@ public partial class FileTable : UserControl
     private bool _descending = true;
     public Task Pending { get; private set; } = Task.CompletedTask;
     public event Action<int>? NodeSelected;
+    public event Action<IReadOnlyList<int>>? SelectionChanged;
+    public event Action<int>? NodeHovered;
     public event Action<int>? NodeOpened;
     public event Action<IReadOnlyList<int>>? NodesStaged;
 
@@ -49,7 +51,15 @@ public partial class FileTable : UserControl
         Rows.SelectionChanged += (_, _) =>
         {
             if (Rows.SelectedItem is FileTableRow row) NodeSelected?.Invoke(row.Node);
+            SelectionChanged?.Invoke(Rows.SelectedItems?.Cast<FileTableRow>().Select(r => r.Node).ToArray() ?? []);
         };
+        Rows.PointerMoved += (_, e) => {
+            var control = e.Source as Avalonia.Visual;
+            var row = control?.GetSelfAndVisualAncestors().OfType<Control>()
+                .Select(c => c.DataContext).OfType<FileTableRow>().FirstOrDefault();
+            NodeHovered?.Invoke(row?.Node ?? -1);
+        };
+        Rows.PointerExited += (_, _) => NodeHovered?.Invoke(-1);
         StageSelected.Click += (_, _) => NodesStaged?.Invoke(
             Rows.SelectedItems?.Cast<FileTableRow>().Select(r => r.Node).ToArray() ?? []);
         Rows.KeyDown += (_, e) =>

@@ -61,6 +61,107 @@ public sealed class OperationTests : IDisposable
         return window;
     }
 
+    [AvaloniaFact]
+    public async Task Multiple_selection_toggles_and_stages_every_selected_file()
+    {
+        MainWindow window = await Scan();
+        int a = Node(window, "a.txt"), b = Node(window, "b.txt");
+        window.SelectNodes([a]);
+        window.ToggleNode(b);
+        Assert.Equal("2 entries", window.InspectorName.Text);
+        Assert.Equal(Sizes.Format(300), window.InspectorSize.Text);
+        Assert.True(window.SelectionTree.IsVisible);
+        Assert.Single(window.SelectionTree.Items);
+        window.ToggleNode(a);
+        Assert.Equal("b.txt", window.InspectorName.Text);
+        window.ToggleNode(a);
+        Click(window.StageButton);
+        Assert.Equal(2, window.StagedCount);
+        bool recycled = false;
+        await window.RunCleanup(_ => Task.FromResult(false), _ => {
+            recycled = true;
+            return Task.FromResult(new RecycleBin.Result(true, false, 0));
+        });
+        Assert.False(recycled);
+        Assert.True(File.Exists(Path.Combine(Tree, "a.txt")));
+        window.SelectNodes([]);
+        Assert.False(window.SelectionTree.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Selected_parent_and_child_are_not_double_counted_and_scan_clears_tree()
+    {
+        MainWindow window = await Scan();
+        window.SelectNodes([0, Node(window, "a.txt")]);
+        Assert.Equal(Sizes.Format(300), window.InspectorSize.Text);
+        await window.RunScanAsync(Other);
+        await SnapshotWork(window);
+        Assert.False(window.SelectionTree.IsVisible);
+        Assert.Empty(window.SelectionTree.Items);
+    }
+
+    [AvaloniaFact]
+    public async Task Cleanup_dialog_lists_all_paths_and_cancel_preserves_files()
+    {
+        MainWindow window = await Scan();
+        window.Show();
+        window.Stage(Node(window, "a.txt"));
+        window.Stage(Node(window, "b.txt"));
+        Task cleanup = window.RunCleanup();
+        Window dialog = Assert.Single(window.OwnedWindows);
+        try
+        {
+            var paths = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(dialog)
+                .OfType<SelectableTextBlock>().Single();
+            Assert.Contains(Path.Combine(Tree, "a.txt"), paths.Text);
+            Assert.Contains(Path.Combine(Tree, "b.txt"), paths.Text);
+            Button cancel = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(dialog)
+                .OfType<Button>().Single(b => b.IsCancel);
+            Click(cancel);
+            await cleanup;
+            Assert.Equal(2, window.StagedCount);
+            Assert.True(File.Exists(Path.Combine(Tree, "a.txt")));
+            Assert.True(File.Exists(Path.Combine(Tree, "b.txt")));
+        }
+        finally { dialog.Close(false); }
+    }
+
+    [AvaloniaFact]
+    public async Task Move_cancellation_never_calls_shell_and_confirmed_move_refreshes_scan()
+    {
+        MainWindow window = await Scan();
+        window.SelectNodes([Node(window, "a.txt"), Node(window, "b.txt")]);
+        bool called = false;
+        await window.MoveSelectionAsync(Other, _ => Task.FromResult(false), _ => {
+            called = true;
+            return Task.FromResult(new RecycleBin.Result(true, false, 0));
+        });
+        Assert.False(called);
+        Assert.True(File.Exists(Path.Combine(Tree, "a.txt")));
+        await window.MoveSelectionAsync(Other, _ => Task.FromResult(true), plan => {
+            foreach (string source in plan.Sources) File.Move(source, Path.Combine(plan.Destination, Path.GetFileName(source)));
+            return Task.FromResult(new RecycleBin.Result(true, false, 0));
+        });
+        await SnapshotWork(window);
+        Assert.True(File.Exists(Path.Combine(Other, "a.txt")));
+        Assert.False(File.Exists(Path.Combine(Tree, "a.txt")));
+        Assert.Equal(0, window.Store!.Size[0]);
+    }
+
+    [AvaloniaFact]
+    public async Task Saved_filter_applies_query_without_changing_scan_exclusions()
+    {
+        MainWindow window = await Scan();
+        var exclusions = AppSettings.Current.ExcludedPaths;
+        window.ApplySavedFilter(new SavedFilter("Only b", new FileQuery { Name = "b.txt" }));
+        await window.FilesTable.Pending;
+        Assert.Same(exclusions, AppSettings.Current.ExcludedPaths);
+        Assert.True(window.FilesTable.IsVisible);
+        Assert.Equal("Only b", window.StatusText.Text);
+        var rows = window.FilesTable.FindControl<ListBox>("Rows")!;
+        Assert.Single(rows.Items);
+    }
+
     private static Task SnapshotWork(MainWindow window)
         => (Task)typeof(MainWindow).GetField("_snapshotWork", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(window)!;

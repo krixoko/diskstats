@@ -33,6 +33,8 @@ public partial class MainWindow
     /// </summary>
     private void OnNodeHovered(int node)
     {
+        HoverPath.Text = IsLive(node) ? _store.PathOf(node) : string.Empty;
+        ToolTip.SetTip(HoverPath, HoverPath.Text);
         if (_selected >= 0) return;
         if (node >= 0) ShowNode(node);
     }
@@ -40,10 +42,84 @@ public partial class MainWindow
     private void OnNodeSelected(int node)
     {
         if (node >= 0 && !IsLive(node)) return;
-        _selected = node;
-        Chart.SetSelected(node);
-        ShowNode(node >= 0 ? node : _currentRoot);
+        SelectNodes(node >= 0 ? [node] : []);
+    }
+
+    private readonly HashSet<int> _selection = [];
+
+    internal void ToggleNode(int node)
+    {
+        if (!IsLive(node)) return;
+        if (!_selection.Remove(node)) _selection.Add(node);
+        SelectNodes(_selection.ToArray());
+    }
+
+    internal void SelectNodes(IReadOnlyList<int> nodes)
+    {
+        _selection.Clear();
+        _selection.UnionWith(nodes.Where(IsLive));
+        _selected = _selection.LastOrDefault(-1);
+        Chart.SetSelectedNodes(_selection);
+        ShowNode(_selected >= 0 ? _selected : _currentRoot);
+        LargestCard.IsVisible = _selection.Count <= 1;
+        SelectionTree.Items.Clear();
+        SelectionTree.IsVisible = _selection.Count > 0;
+        if (_store is not null && _selection.Count > 0)
+        {
+            var branches = new Dictionary<int, TreeViewItem>();
+            TreeViewItem AddBranch(int node)
+            {
+                if (branches.TryGetValue(node, out var existing)) return existing;
+                var label = new TextBlock {
+                    Text = _store.DisplayName(node), FontSize = 11.5,
+                    FontWeight = _selection.Contains(node) ? FontWeight.Bold : FontWeight.Normal
+                };
+                ToolTip.SetTip(label, _store.PathOf(node));
+                label.PointerEntered += (_, _) => OnNodeHovered(node);
+                label.PointerExited += (_, _) => OnNodeHovered(-1);
+                label.PointerPressed += (_, e) => {
+                    if (!e.GetCurrentPoint(label).Properties.IsLeftButtonPressed) return;
+                    if (e.KeyModifiers.HasFlag(KeyModifiers.Control)) ToggleNode(node);
+                    else OnNodeSelected(node);
+                    e.Handled = true;
+                };
+                var item = new TreeViewItem { Header = label, IsExpanded = true };
+                branches[node] = item;
+                int parent = _store.ParentIndex[node];
+                if (parent >= 0) AddBranch(parent).Items.Add(item);
+                else SelectionTree.Items.Add(item);
+                return item;
+            }
+            foreach (int node in _selection) AddBranch(node);
+            if (_selection.Count > 1)
+            {
+                InspectorKind.Text = Loc.T("Insp_Selection");
+                InspectorName.Text = Loc.T("Insp_Entries", _selection.Count);
+                InspectorPath.Text = string.Empty;
+                InspectorSize.Text = Sizes.Format(_selection.Where(n => !HasSelectedAncestor(n)).Sum(n => _store.Size[n]));
+                InspectorStorage.Text = InspectorShare.Text = string.Empty;
+                DetailRows.ItemsSource = null;
+                TopChildren.ItemsSource = null;
+                LargestCount.Text = string.Empty;
+                NoChildrenHint.IsVisible = false;
+                RevealButton.IsEnabled = false;
+                StageButton.IsEnabled = !_scanRunning && _selection.Any(n => n > 0);
+            }
+        }
+        MoveButton.IsEnabled = !_scanRunning && !_cleanupRunning && _selection.Any(n => n > 0);
         AnnounceSelection();
+    }
+
+    private bool HasSelectedAncestor(int node)
+    {
+        for (int p = _store!.ParentIndex[node]; p >= 0; p = _store.ParentIndex[p])
+            if (_selection.Contains(p)) return true;
+        return false;
+    }
+
+    private void StageSelection()
+    {
+        foreach (int node in (_selection.Count > 0 ? _selection.ToArray() : new[] { _inspected })) Stage(node);
     }
 
     private void ShowNode(int node)
@@ -53,6 +129,8 @@ public partial class MainWindow
         _inspected = node;
 
         bool isDirectory = store.IsDirectory(node);
+        PreviewButton.IsEnabled = !isDirectory && !_scanRunning;
+        TrendsButton.IsEnabled = !_scanRunning;
         InspectorKind.Text = Loc.T(isDirectory ? "Insp_Folder" : "Insp_File");
 
         string leaf = Path.GetFileName(store.RootPath.TrimEnd('\\'));
@@ -134,6 +212,8 @@ public partial class MainWindow
 
     private void ClearInspector()
     {
+        ClearSelection();
+        PreviewButton.IsEnabled = MoveButton.IsEnabled = TrendsButton.IsEnabled = false;
         InspectorKind.Text = Loc.T("Insp_Selection");
         InspectorName.Text = Loc.T("Stat_ScanningShort");
         InspectorPath.Text = string.Empty;
@@ -168,6 +248,11 @@ public partial class MainWindow
         }
 
         NodeStore store = _store;
+        if (_selection.Count > 1)
+        {
+            AutomationProperties.SetName(Chart, Loc.T("Insp_Entries", _selection.Count) + ", " + InspectorSize.Text);
+            return;
+        }
 
         if (_selected < 0 || _selected >= store.Count)
         {

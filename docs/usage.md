@@ -47,6 +47,53 @@ since the last change. Empty fields leave the results unrestricted.
 Changing exclusions starts a new scan. You can also exclude an item through
 the context menu. Exclusions apply to refreshes and monitoring as well.
 
+## Previewing files
+
+Select a file and press **Space**, or choose **Preview** in the right sidebar.
+Images fit inside the preview window. Text and source files are displayed as plain
+text (HTML is not executed), with a limit of 128 Ki characters. MP4 and other listed
+video formats play inside the app through Windows Media Foundation, with play,
+pause, and restart controls. Video support depends on the installed system codecs.
+Press **Escape** or **Space** to close the preview. Unsupported formats show a message.
+
+## Moving files
+
+Use **Ctrl-click** to select files or folders, then choose **Move to…** in the right
+sidebar. Select a destination folder, including a folder on another drive. DiskStats
+checks current source sizes and available space, then lists the paths for confirmation.
+Parent folders cover any selected children so entries are not moved twice.
+
+Windows handles the actual move, with progress, cancellation, and prompts for name
+conflicts. Nothing is silently overwritten. After an attempted move, DiskStats rescans
+the source, including after cancellation or partial failure. Already moved entries
+stay at the destination if you cancel. Protected system paths, the scan root, and
+linked/cloud-placeholder entries are not accepted for moving. The capacity check
+conservatively requires room for the logical size of all selected files.
+
+## Storage history
+
+Select a folder and choose **History** in the right sidebar. For a file, history shows
+its parent folder. Choose 7, 30, or 90 days, or all retained scans. The chart, dated
+measurements, total change, and changed-child list describe that folder. Click a
+changed entry to return to it in the scan if it still exists.
+
+History uses up to six retained snapshots per scan root, under the existing 12-month
+and global storage limits. It does not schedule background scans. At least two saved
+scans are needed. The closest available scan before the period may serve as the
+baseline; the exact comparison dates are always shown. A folder absent from a scan
+is a gap, not a measured zero. Results reflect the scan's exclusions and readability.
+
+## Saving filters
+
+In **Filter**, configure the query, enter a filter name, and choose **Save filter**.
+Saved filters appear in the left sidebar for one-click reuse on the current folder
+and its descendants. They persist across restarts. The selector in the Filter dialog
+loads a saved query for editing; saving an existing name asks before replacement.
+**Remove saved filter** removes the preset only. Up to 30 presets can be stored.
+
+Presets contain name/path patterns, regex mode, size limits, and age. Scan exclusions
+remain separate and are never changed by applying a preset.
+
 ## File size and allocated space
 
 The header, file table, and detail view show allocated bytes where Windows

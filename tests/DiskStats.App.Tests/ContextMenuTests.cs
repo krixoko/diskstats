@@ -76,6 +76,41 @@ public class ContextMenuTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Ctrl_click_preserves_selection_and_hover_path_is_independent()
+    {
+        MainWindow window = Scan();
+        try
+        {
+            var points = new Dictionary<int, Point>();
+            for (int y = 1; y < 40 && points.Count < 2; y++)
+                for (int x = 1; x < 40 && points.Count < 2; x++)
+                {
+                    var point = new Point(window.Chart.Bounds.Width * x / 40, window.Chart.Bounds.Height * y / 40);
+                    Hover(window, point);
+                    int node = window.Chart.HoveredNode;
+                    if (node >= 0 && !window.Store!.IsDirectory(node)) points.TryAdd(node, point);
+                }
+            Assert.Equal(2, points.Count);
+            var files = points.ToArray();
+            Point At(int i) => window.Chart.TranslatePoint(files[i].Value, window)!.Value;
+            window.MouseDown(At(0), MouseButton.Left);
+            window.MouseUp(At(0), MouseButton.Left);
+            Hover(window, files[1].Value);
+            Assert.Equal(window.Store!.PathOf(files[1].Key), window.HoverPath.Text);
+            Assert.Equal(window.Store.GetName(files[0].Key), window.InspectorName.Text);
+            window.MouseDown(At(1), MouseButton.Left, RawInputModifiers.Control);
+            window.MouseUp(At(1), MouseButton.Left, RawInputModifiers.Control);
+            Assert.Equal("2 entries", window.InspectorName.Text);
+            window.MouseDown(At(1), MouseButton.Left, RawInputModifiers.Control);
+            window.MouseUp(At(1), MouseButton.Left, RawInputModifiers.Control);
+            Assert.Equal(window.Store.GetName(files[0].Key), window.InspectorName.Text);
+            window.MouseMove(new Point(0, 0));
+            Assert.Equal(string.Empty, window.HoverPath.Text);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Der_scan_kommt_wirklich_an()
     {
         MainWindow window = Scan();

@@ -22,7 +22,7 @@
   -->
   <Identity Name="RINGPAPERS.DiskStats"
             Publisher="CN=13A09468-7E0C-4DE7-B0BE-BACA98B7C055"
-            Version="1.1.0.0"
+            Version="1.2.0.0"
             ProcessorArchitecture="x64" />
 
   <Properties>

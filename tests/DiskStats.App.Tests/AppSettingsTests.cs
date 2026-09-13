@@ -27,6 +27,22 @@ public sealed class AppSettingsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Saved_filter_roundtrips_replaces_by_name_and_can_be_removed()
+    {
+        AppSettings.Current = new AppSettings();
+        var query = new Core.Storage.FileQuery { Name = "*.mp4", MinBytes = 2L * 1024 * 1024 * 1024, OlderThanDays = 180 };
+        SavedFilter.Save("Large videos", query);
+        AppSettings.Current = new AppSettings();
+        AppSettings.Load();
+        Assert.Equal(query, Assert.Single(AppSettings.Current.SavedFilters).Query);
+        SavedFilter.Save("large VIDEOS", query with { OlderThanDays = 90 });
+        Assert.Equal(90, Assert.Single(AppSettings.Current.SavedFilters).Query.OlderThanDays);
+        SavedFilter.Remove("Large Videos");
+        AppSettings.Load();
+        Assert.Empty(AppSettings.Current.SavedFilters);
+    }
+
+    [AvaloniaFact]
     public void Schreibt_erst_daneben_und_laesst_keine_halbe_datei_zurueck()
     {
         AppSettings.Apply(s => s.LastPath = @"D:\Filme");

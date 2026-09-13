@@ -45,6 +45,7 @@ public sealed class AppSettings
     public int WorkerCount { get; set; }
     public DiskStats.Core.Scanning.ScanMethod ScanMethod { get; set; }
     public string[] ExcludedPaths { get; set; } = [];
+    public SavedFilter[] SavedFilters { get; set; } = [];
 
     public SizeBase Sizes { get; set; } = SizeBase.Binary;
 

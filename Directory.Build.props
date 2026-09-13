@@ -14,9 +14,9 @@
       Version ist die eine Stelle, an der sie gepflegt wird — die uebrigen leiten sich ab.
       Sie muss beim Veroeffentlichen mit der Version im Paketmanifest uebereinstimmen.
     -->
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
     <Company>RINGPAPERS</Company>
     <Product>DiskStats</Product>
     <Authors>RINGPAPERS</Authors>

@@ -111,8 +111,9 @@ public partial class MainWindow
         DuplicatesButton.IsEnabled = false;
         try
         {
-            bool yes = await (confirm?.Invoke(question)
-                ?? Confirm.Ask(this, Loc.T("Clean_Delete"), question, Loc.T("Clean_Move")));
+            bool yes = confirm is not null ? await confirm(question)
+                : (await Confirm.Ask(this, Loc.T("Clean_Delete"), question, Loc.T("Clean_Move"),
+                    null, focusConfirm: false, paths: items.Select(i => i.Path).ToArray())).Yes;
             if (!yes) return;
 
             // Snapshot serialization must finish before this same store is mutated.

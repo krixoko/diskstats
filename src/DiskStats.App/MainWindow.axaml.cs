@@ -85,9 +85,13 @@ public partial class MainWindow : Window
         UpButton.Click += OnUpClicked;
         RevealButton.Click += OnRevealClicked;
         CopyPathButton.Click += OnCopyPathClicked;
+        PreviewButton.Click += (_, _) => Guard(PreviewAsync(), "Preview");
+        MoveButton.Click += (_, _) => Guard(PickMoveDestination(), "Move");
+        TrendsButton.Click += (_, _) => Guard(ShowTrendsAsync(), "Trends");
 
         Chart.NodeHovered += OnNodeHovered;
         Chart.NodeSelected += OnNodeSelected;
+        Chart.NodeToggled += ToggleNode;
         Chart.NodeOpened += OnNodeOpened;
 
         ActualThemeVariantChanged += (_, _) =>
@@ -98,13 +102,14 @@ public partial class MainWindow : Window
             ShowFileTypes();
             UpdateViewButtons();
             Chart.Invalidate();
-            if (_inspected >= 0) ShowNode(_inspected);
+            if (_selection.Count > 0) SelectNodes(_selection.ToArray());
+            else if (_inspected >= 0) ShowNode(_inspected);
         };
 
         AppSettings.Changed += ApplySettings;
         ApplySettings();
 
-        StageButton.Click += (_, _) => Stage(_inspected);
+        StageButton.Click += (_, _) => StageSelection();
         CleanupClear.Click += (_, _) => { _cleanup.Clear(); ShowCleanup(); };
         CleanupRun.Click += (_, _) => Guard(RunCleanup(), "Aufraeumen");
 
@@ -115,7 +120,8 @@ public partial class MainWindow : Window
         RestoreWindow();
         Closing += (_, _) => RememberWindow();
 
-        FilesTable.NodeSelected += OnNodeSelected;
+        FilesTable.SelectionChanged += SelectNodes;
+        FilesTable.NodeHovered += OnNodeHovered;
         FilesTable.NodeOpened += OnNodeOpened;
         FilesTable.NodesStaged += nodes => { foreach (int node in nodes) Stage(node); };
         FilterButton.Click += (_, _) => Guard(EditFilters(), "Filter");
@@ -143,6 +149,7 @@ public partial class MainWindow : Window
     /// <summary>Zieht die Oberflaeche nach einer Aenderung der Einstellungen nach.</summary>
     private void ApplySettings()
     {
+        BuildSavedFilters();
         Avalonia.Application.Current!.RequestedThemeVariant = AppSettings.Current.Theme switch
         {
             ThemeChoice.Light => ThemeVariant.Light,
@@ -153,7 +160,8 @@ public partial class MainWindow : Window
         Chart.Invalidate();
         UpdateHeader();
         ShowFileTypes();
-        if (_inspected >= 0) ShowNode(_inspected);
+        if (_selection.Count > 0) SelectNodes(_selection.ToArray());
+        else if (_inspected >= 0) ShowNode(_inspected);
     }
 
     /// <summary>
@@ -223,7 +231,7 @@ public partial class MainWindow : Window
         copy.Click += (_, _) => Guard(CopyPathOf(_menuNode), "Pfad kopieren");
 
         var stage = new MenuItem { Header = Loc.T("Menu_Stage") };
-        stage.Click += (_, _) => Stage(_menuNode);
+        stage.Click += (_, _) => StageSelection();
 
         var export = new MenuItem { Header = Loc.T("Menu_Export") };
         export.Click += (_, _) => Guard(ExportCsv(_menuNode), "CSV-Export");
@@ -260,7 +268,7 @@ public partial class MainWindow : Window
 
             // Der Rechtsklick waehlt zugleich aus: sonst wirkt das Menue auf etwas anderes,
             // als der Inspector gerade zeigt.
-            OnNodeSelected(node);
+            if (!_selection.Contains(node)) OnNodeSelected(node);
 
             // Ausblenden statt ausgrauen: In eine Datei fuehrt kein Weg hinein, und ein toter
             // Eintrag ganz oben liest sich als kaputtes Menue — genau so wurde er gemeldet.
@@ -373,7 +381,14 @@ public partial class MainWindow : Window
     }
 
     private void OnCopyPathClicked(object? sender, RoutedEventArgs e)
-        => Guard(CopyPathOf(_inspected), "Pfad kopieren");
+        => Guard(CopySelectedPaths(), "Pfad kopieren");
+
+    private async Task CopySelectedPaths()
+    {
+        if (_selection.Count == 0) { await CopyPathOf(_inspected); return; }
+        if (Clipboard is { } clipboard && _store is not null)
+            await clipboard.SetTextAsync(string.Join(Environment.NewLine, _selection.Select(_store.PathOf)));
+    }
 
     private async Task CopyPathOf(int node)
     {

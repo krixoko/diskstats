@@ -49,7 +49,7 @@ public sealed class ChartView : Control
     private Geometry?[] _geometries = [];
     private Rect _laidOutFor;
     private int _hoverItem = -1;
-    private int _selectedNode = -1;
+    private readonly HashSet<int> _selectedNodes = [];
 
     private ChartTheme? _theme;
     private IPen? _hoverPen;
@@ -102,6 +102,7 @@ public sealed class ChartView : Control
 
     public event Action<int>? NodeHovered;
     public event Action<int>? NodeSelected;
+    public event Action<int>? NodeToggled;
     public event Action<int>? NodeOpened;
 
     public ChartView()
@@ -192,8 +193,13 @@ public sealed class ChartView : Control
 
     public void SetSelected(int nodeIndex)
     {
-        if (_selectedNode == nodeIndex) return;
-        _selectedNode = nodeIndex;
+        SetSelectedNodes(nodeIndex >= 0 ? [nodeIndex] : []);
+    }
+
+    public void SetSelectedNodes(IEnumerable<int> nodes)
+    {
+        _selectedNodes.Clear();
+        _selectedNodes.UnionWith(nodes);
         InvalidateVisual();
     }
 
@@ -364,12 +370,9 @@ public sealed class ChartView : Control
     /// </summary>
     private void DrawHighlights(DrawingContext context, NodeStore store)
     {
-        if (_selectedNode >= 0)
-        {
-            int index = IndexOfNode(_selectedNode);
-            if (index >= 0)
+        for (int index = 0; index < _items.Count; index++)
+            if (_selectedNodes.Contains(_items[index].NodeIndex))
                 DrawShape(context, store, _items[index], _geometries[index], false, _selectionPen);
-        }
 
         if (_hoverItem < 0 || _hoverItem >= _items.Count) return;
 
@@ -730,18 +733,21 @@ public sealed class ChartView : Control
 
         if (_items.Count == 0) return;
 
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         Point at = e.GetPosition(this);
         int hit = HitTest(at);
 
         if (hit < 0)
         {
             // Klick ins Leere hebt die Auswahl auf — sonst bleibt man daran haengen.
-            NodeSelected?.Invoke(-1);
+            if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) NodeSelected?.Invoke(-1);
             return;
         }
 
         int node = _items[hit].NodeIndex;
-        if (e.ClickCount >= 2 && _store is not null && _store.IsDirectory(node))
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            NodeToggled?.Invoke(node);
+        else if (e.ClickCount >= 2 && _store is not null && _store.IsDirectory(node))
             NodeOpened?.Invoke(node);
         else
             NodeSelected?.Invoke(node);

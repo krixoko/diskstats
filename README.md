@@ -37,6 +37,10 @@ what you want to remove before confirming any deletion.
 | **Measure disk speed** | Run sequential, random, and mixed read/write tests with a **1 GiB test file**, including throughput, IOPS, and average access time. |
 | **Clean up with control** | Review a clean-up list, confirm deletions, open items in Explorer, and export results as CSV. |
 
+Version 1.2.0 includes file previews with **Space**, confirmed moves with Windows
+progress and conflict handling, folder history from retained scans, and saved filter
+presets. See the [user guide](docs/usage.md) for supported formats and behavior.
+
 English and German · Light and dark themes · Local scan processing · No app account required
 
 ## Screenshots
@@ -84,9 +88,7 @@ The Store app includes its .NET runtime. Regular scans do not need administrator
 rights. Some storage metrics depend on the device, driver, adapter, and permissions;
 unsupported health readings are shown as **Not available**.
 
-The source includes the 1.1.0 features shown above. The corresponding Store update
-was submitted for certification on September 13, 2026; Store rollout may lag behind
-this repository. See the [1.1.0 release notes](docs/releases/1.1.0.md).
+See the [1.2.0 release notes](docs/releases/1.2.0.md). Store rollout may lag behind GitHub releases.
 
 ## How it treats your data
 

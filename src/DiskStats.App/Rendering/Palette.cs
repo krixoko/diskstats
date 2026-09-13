@@ -8,10 +8,7 @@ public enum ColorMode { ByFolder, ByType, ByAge }
 /// <summary>
 /// Erzeugt die Flaechenfarben.
 ///
-/// Alle Toene stammen aus derselben schmalen Familie: geringe Saettigung, hohe Helligkeit.
-/// Das ist keine Geschmacksfrage, sondern folgt aus der Aufgabe — eine Treemap zeigt tausende
-/// Flaechen nebeneinander, und kraeftige Farben in dieser Menge werden zum Rauschen. Pastell
-/// laesst Groessenverhaeltnisse und Beschriftungen die Hauptrolle behalten.
+/// Saturated branch colors separate neighboring folders while keeping labels readable.
 /// </summary>
 public static class Palette
 {
@@ -20,7 +17,7 @@ public static class Palette
     /// Gelbgruen und Cyan sind ausgespart, weil sie neben den Nachbartoenen aus der Reihe fallen.
     /// </summary>
     private static readonly double[] FolderHues =
-        [8, 32, 48, 92, 132, 168, 196, 218, 250, 285, 316, 340];
+        [8, 218, 48, 285, 168, 340, 92, 250, 32, 196, 316, 132];
 
     public static Color ForFolderBranch(int branchIndex, int depth, bool dark)
     {
@@ -28,10 +25,10 @@ public static class Palette
 
         // Mit der Tiefe leicht aufhellen: Kinder heben sich vom Elternfeld ab,
         // bleiben aber erkennbar derselbe Zweig.
-        double lightness = dark ? 0.40 + depth * 0.042 : 0.845 - depth * 0.028;
-        double saturation = dark ? 0.26 : 0.33 - depth * 0.018;
+        double lightness = dark ? 0.32 + depth * 0.025 : 0.76 - depth * 0.022;
+        double saturation = dark ? 0.65 : 0.68 - depth * 0.015;
 
-        return FromHsl(hue, Math.Clamp(saturation, 0.13, 0.5), Math.Clamp(lightness, 0.30, 0.94));
+        return FromHsl(hue, Math.Clamp(saturation, 0.50, 0.75), Math.Clamp(lightness, 0.30, 0.94));
     }
 
     /// <summary>
@@ -66,6 +63,7 @@ public static class Palette
     {
         (double hue, double saturation, double lightness) = CategoryTones[(int)category];
 
+        saturation = Math.Min(0.85, saturation * 1.3);
         double step = (variant % 4) * (dark ? 0.045 : -0.045);
         double shifted = Math.Clamp(lightness + step, 0.18, 0.94);
 
@@ -87,7 +85,7 @@ public static class Palette
         double t = Math.Clamp(years / 5.0, 0, 1);
 
         double hue = 32 + t * 178;                    // Bernstein nach Blaugruen
-        double saturation = 0.50 - t * 0.20;
+        double saturation = 0.72 - t * 0.14;
         double lightness = dark ? 0.44 - t * 0.06 : 0.82 - t * 0.06;
 
         return FromHsl(hue, saturation, lightness);

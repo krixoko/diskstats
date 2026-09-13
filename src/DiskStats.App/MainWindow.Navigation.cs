@@ -46,6 +46,11 @@ public partial class MainWindow
 
         switch (e.Key)
         {
+            case Key.Space:
+                if (e.Source is Button or CheckBox or TextBox) return;
+                Guard(PreviewAsync(), "Preview");
+                e.Handled = true;
+                return;
             case Key.Escape:
                 if (SearchPanel.IsVisible) CloseSearch();
                 else if (_selected >= 0) OnNodeSelected(-1);
@@ -64,7 +69,7 @@ public partial class MainWindow
 
             case Key.Delete:
                 if (_selected < 0) return;
-                Stage(_selected);
+                StageSelection();
                 break;
 
             case Key.F5:
@@ -189,6 +194,12 @@ public partial class MainWindow
     private void ClearSelection()
     {
         _selected = -1;
+        _selection.Clear();
+        MoveButton.IsEnabled = false;
+        LargestCard.IsVisible = true;
+        SelectionTree.Items.Clear();
+        SelectionTree.IsVisible = false;
+        HoverPath.Text = string.Empty;
         Chart.SetSelected(-1);
     }
 

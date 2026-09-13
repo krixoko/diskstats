@@ -24,7 +24,7 @@ public static class Confirm
     /// </summary>
     public static async Task<(bool Yes, bool Checked)> Ask(
         Window owner, string title, string message, string confirmLabel,
-        string? checkboxLabel, bool focusConfirm)
+        string? checkboxLabel, bool focusConfirm, IReadOnlyList<string>? paths = null)
     {
         var heading = new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeight.Bold };
         var body = new TextBlock { Text = message, FontSize = 12.5, TextWrapping = TextWrapping.Wrap };
@@ -51,13 +51,21 @@ public static class Confirm
         var layout = new StackPanel { Margin = new Avalonia.Thickness(22, 20), Spacing = 14 };
         layout.Children.Add(heading);
         layout.Children.Add(body);
+        if (paths is not null)
+        {
+            layout.Children.Add(new ScrollViewer {
+                MaxHeight = 280,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                Content = new SelectableTextBlock { Text = string.Join(Environment.NewLine, paths), FontSize = 12 }
+            });
+        }
         if (remember is not null) layout.Children.Add(remember);
         layout.Children.Add(buttons);
 
         var dialog = new Window
         {
             Title = title,
-            Width = 420,
+            Width = paths is null ? 420 : 680,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             ShowInTaskbar = false,

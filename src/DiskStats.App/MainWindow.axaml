@@ -200,6 +200,11 @@
                             </ItemsControl>
                         </StackPanel>
 
+                        <StackPanel x:Name="SavedFiltersBlock" IsVisible="False" Spacing="5">
+                            <TextBlock Classes="eyebrow" Text="{loc:T Filter_Saved}" />
+                            <StackPanel x:Name="SavedFiltersList" Spacing="3" />
+                        </StackPanel>
+
                         <StackPanel Spacing="8" x:Name="FileTypesBlock" IsVisible="False">
                             <Grid ColumnDefinitions="*,Auto" Margin="3,0,0,0">
                                 <TextBlock Grid.Column="0" Classes="eyebrow" Text="{loc:T Side_FileTypes}"
@@ -406,6 +411,9 @@
                                        TextWrapping="Wrap" Text="" />
                         </StackPanel>
 
+                        <TreeView x:Name="SelectionTree" IsVisible="False" MaxHeight="230"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+
                         <StackPanel Spacing="2">
                             <TextBlock x:Name="InspectorSize" Classes="num" FontSize="30"
                                        FontWeight="Bold" Text="—" />
@@ -477,6 +485,12 @@
                                     Content="{loc:T Insp_CopyPath}" IsEnabled="False" />
                         </Grid>
 
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Classes="quiet" x:Name="PreviewButton" IsEnabled="False" Content="{loc:T Preview_Title}" Margin="0,0,6,6" ToolTip.Tip="{loc:T Preview_Space}" />
+                            <Button Classes="quiet" x:Name="MoveButton" IsEnabled="False" Content="{loc:T Move_Title}" Margin="0,0,6,6" />
+                            <Button Classes="quiet" x:Name="TrendsButton" IsEnabled="False" Content="{loc:T Trend_Title}" Margin="0,0,0,6" />
+                        </WrapPanel>
+
                         <Button Classes="quiet" x:Name="StageButton" IsEnabled="False"
                                 Content="{loc:T Clean_Stage}" HorizontalAlignment="Stretch" />
 
@@ -528,7 +542,9 @@
         <!-- Statusleiste -->
         <Border Grid.Row="1" Background="{DynamicResource Panel}"
                 BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="16,9">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="3" x:Name="HoverPath" FontSize="11"
+                           MinHeight="16" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
                 <Button Grid.Column="0" Classes="quiet" x:Name="CancelButton" Content="{loc:T Common_Cancel}"
                         Padding="10,4" FontSize="11.5" Margin="0,0,12,0" IsVisible="False" />
                 <TextBlock Grid.Column="1" x:Name="StatusText" Classes="num label"

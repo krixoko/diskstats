@@ -110,7 +110,7 @@ public class LocTests
         string source = SourceRoot();
         var literal = new Regex(@"""[A-ZÄÖÜ]{3,}""", RegexOptions.Compiled);
         // Abkuerzungen, die in jeder Sprache gleich heissen.
-        string[] neutral = ["\"CSV\"", "\"NTFS\"", "\"MFT\"", "\"UTF\""];
+        string[] neutral = ["\"CSV\"", "\"NTFS\"", "\"MFT\"", "\"UTF\"", "\"STATIC\"", "\"HWND\""];
         var offenders = new List<string>();
 
         foreach (string file in Directory.EnumerateFiles(source, "*.cs", SearchOption.AllDirectories))

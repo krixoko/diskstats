@@ -153,7 +153,12 @@ public class DiskHealthTests
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows process test");
         var error = await Assert.ThrowsAsync<IOException>(() => DiskHealthReader.RunQueryAsync(
-            Start("[Console]::Error.WriteLine('Provider unavailable'); exit 1"), TimeSpan.FromSeconds(15), CancellationToken.None));
+            new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+                ArgumentList = { "/d", "/c", "echo Provider unavailable 1>&2 & exit /b 1" }
+            }, TimeSpan.FromSeconds(15), CancellationToken.None));
         Assert.Contains("Provider unavailable", error.Message);
     }
 

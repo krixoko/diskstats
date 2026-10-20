@@ -126,7 +126,7 @@ public partial class MainWindow
     /// <summary>Ein Treffer fuehrt dorthin, wo er liegt, und wird dort ausgewaehlt.</summary>
     private void OnSearchHitClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: int node } || _scanRunning || _cleanupRunning || !IsLive(node)) return;
+        if (sender is not Button { Tag: int node } || !_ops.CanBrowse || !IsLive(node)) return;
         NodeStore store = _store;
 
         int parent = store.ParentIndex[node];

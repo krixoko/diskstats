@@ -57,15 +57,30 @@ public static class SingleInstance
     private const uint Owner = 4;
 
     /// <summary>
+    /// So lange wartet ein Neustart auf seinen Vorgaenger. Der schliesst sich unmittelbar nach dem
+    /// Start des neuen Prozesses; zwanzig Sekunden decken auch einen langsamen Rechner, ohne dass
+    /// ein haengender Vorgaenger den Start ewig blockiert.
+    /// </summary>
+    public static readonly TimeSpan PredecessorWait = TimeSpan.FromSeconds(20);
+
+    /// <summary>
     /// Gibt zurueck, ob diese Anwendung weiterlaufen darf. Ist bereits eine da, wird sie
     /// nach vorn geholt und dieser Start soll sich beenden.
+    ///
+    /// <paramref name="wait"/> ist fuer den Neustart mit erhoehten Rechten: Der alte Prozess
+    /// startet den neuen und schliesst sich erst danach — er haelt die Sperre also noch. Ohne
+    /// Warten hielte sich der neue fuer einen zweiten Start und beendete sich; der alte ginge
+    /// ebenfalls, und der Benutzer stuende ohne Fenster da.
     /// </summary>
-    public static bool Claim()
+    public static bool Claim(TimeSpan wait = default) => Claim(Name, wait);
+
+    internal static bool Claim(string name, TimeSpan wait)
     {
         try
         {
-            _held = new Mutex(initiallyOwned: true, Name, out bool mine);
+            _held = new Mutex(initiallyOwned: true, name, out bool mine);
             if (mine) return true;
+            if (wait > TimeSpan.Zero && WaitForPredecessor(_held, wait)) return true;
         }
         // Gehoert die Sperre einem anderen Benutzerkonto, ist sie fuer uns unerreichbar.
         // Dann lieber starten als sich grundlos beenden.
@@ -74,6 +89,13 @@ public static class SingleInstance
 
         BringExistingToFront();
         return false;
+    }
+
+    private static bool WaitForPredecessor(Mutex mutex, TimeSpan wait)
+    {
+        try { return mutex.WaitOne(wait); }
+        // Der Vorgaenger ist ohne Freigabe gestorben; die Sperre gehoert jetzt uns.
+        catch (AbandonedMutexException) { return true; }
     }
 
     /// <summary>

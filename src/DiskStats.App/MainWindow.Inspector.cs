@@ -103,10 +103,10 @@ public partial class MainWindow
                 LargestCount.Text = string.Empty;
                 NoChildrenHint.IsVisible = false;
                 RevealButton.IsEnabled = false;
-                StageButton.IsEnabled = !_scanRunning && _selection.Any(n => n > 0);
+                StageButton.IsEnabled = _ops.CanStage && _selection.Any(n => n > 0);
             }
         }
-        MoveButton.IsEnabled = !_scanRunning && !_cleanupRunning && _selection.Any(n => n > 0);
+        MoveButton.IsEnabled = _ops.CanBrowse && _selection.Any(n => n > 0);
         AnnounceSelection();
     }
 
@@ -129,8 +129,8 @@ public partial class MainWindow
         _inspected = node;
 
         bool isDirectory = store.IsDirectory(node);
-        PreviewButton.IsEnabled = !isDirectory && !_scanRunning;
-        TrendsButton.IsEnabled = !_scanRunning;
+        PreviewButton.IsEnabled = !isDirectory && !_ops.Scanning;
+        TrendsButton.IsEnabled = !_ops.Scanning;
         InspectorKind.Text = Loc.T(isDirectory ? "Insp_Folder" : "Insp_File");
 
         string leaf = Path.GetFileName(store.RootPath.TrimEnd('\\'));
@@ -176,7 +176,7 @@ public partial class MainWindow
 
         RevealButton.IsEnabled = true;
         CopyPathButton.IsEnabled = true;
-        StageButton.IsEnabled = node > 0 && !_scanRunning;
+        StageButton.IsEnabled = node > 0 && _ops.CanStage;
 
         ShowTopChildren(store, node);
     }

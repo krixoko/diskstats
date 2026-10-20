@@ -25,7 +25,7 @@ public partial class MainWindow
 
     internal void ApplySavedFilter(SavedFilter preset)
     {
-        if (_scanRunning || _cleanupRunning || _store is null) return;
+        if (!_ops.CanBrowse || _store is null) return;
         try
         {
             preset.Query.Validate();
@@ -41,7 +41,7 @@ public partial class MainWindow
 
     private async Task ShowTrendsAsync()
     {
-        if (_scanRunning || _cleanupRunning || _store is null) return;
+        if (!_ops.CanBrowse || _store is null) return;
         int node = IsLive(_inspected) ? _inspected : _currentRoot;
         if (!_store.IsDirectory(node)) node = _store.ParentIndex[node];
         string root = _store.RootPath, folder = _store.PathOf(Math.Max(0, node));

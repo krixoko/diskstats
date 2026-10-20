@@ -165,7 +165,7 @@ public partial class MainWindow
 
     private async Task FindDuplicatesAsync()
     {
-        if (_store is null || _benchmarkOpen || _scanRunning || _cleanupRunning) return;
+        if (_store is null || !_ops.CanAnalyze) return;
         NodeStore store = _store;
 
         _dupSearch?.Cancel();
@@ -204,7 +204,7 @@ public partial class MainWindow
         finally
         {
             _duplicateRuns--;
-            if (!token.IsCancellationRequested && !_cleanupRunning && !_scanRunning) DuplicatesButton.IsEnabled = true;
+            if (!token.IsCancellationRequested && _ops.CanBrowse) DuplicatesButton.IsEnabled = true;
         }
     }
 

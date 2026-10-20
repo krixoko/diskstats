@@ -73,7 +73,7 @@ public partial class MainWindow
                 break;
 
             case Key.F5:
-                if (_scanRoot.Length == 0 || _scanRunning) return;
+                if (_scanRoot.Length == 0 || _ops.Scanning) return;
                 StartScan(_scanRoot);
                 break;
 
@@ -166,7 +166,7 @@ public partial class MainWindow
     /// </summary>
     internal void OnNodeOpened(int node)
     {
-        if (!IsLive(node) || _scanRunning || _cleanupRunning || !_store.IsDirectory(node)) return;
+        if (!IsLive(node) || !_ops.CanBrowse || !_store.IsDirectory(node)) return;
         if (_store.ChildCount[node] == 0) return;
 
         _history.Push(_currentRoot);

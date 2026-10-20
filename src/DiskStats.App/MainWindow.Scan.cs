@@ -52,7 +52,7 @@ public partial class MainWindow
         if (Array.Exists(args, a => a.Equals("--dark", StringComparison.OrdinalIgnoreCase)))
             Avalonia.Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
 
-        string path = args.Length > 1 ? args[1] : string.Empty;
+        string path = CommandLine.PathFrom(args);
 
         Loaded += (_, _) => Guard(StartUp(path), "Start");
     }
@@ -120,7 +120,7 @@ public partial class MainWindow
     internal async Task RunScanAsync(string path,
         Func<string, int, Action<ScanSession.Update>, CancellationToken, Task>? run = null)
     {
-        if (_cleanupRunning || _benchmarkOpen) return;
+        if (!_ops.CanStartScan) return;
         if (!Directory.Exists(path))
         {
             StatusText.Text = Loc.T("Stat_NotFound", path);
@@ -148,7 +148,7 @@ public partial class MainWindow
         Badge.Progress = null;
         Badge.Busy = true;
 
-        _scanRunning = true;
+        _ops.Scanning = true;
         FilesTable.IsEnabled = false;
         CancelButton.IsVisible = true;
         EmptyHint.IsVisible = false;
@@ -177,7 +177,13 @@ public partial class MainWindow
         try
         {
             await (run ?? ((p, w, update, token) => ScanSession.RunAsync(p,
-                new WalkOptions { WorkerCount = w, ExcludedPaths = AppSettings.Current.ExcludedPaths, Method = AppSettings.Current.ScanMethod }, update, token)))
+                new WalkOptions
+                {
+                    WorkerCount = w,
+                    ExcludedPaths = AppSettings.Current.ExcludedPaths,
+                    Method = AppSettings.Current.ScanMethod,
+                    MftProgress = fraction => Dispatcher.UIThread.Post(() => OnMftProgress(session, fraction)),
+                }, update, token)))
                 (path, _workers, update =>
             {
                 if (!ReferenceEquals(_scan, session) || session.IsCancellationRequested) return;
@@ -198,7 +204,7 @@ public partial class MainWindow
             if (ReferenceEquals(_scan, session))
             {
                 _scan = null;
-                _scanRunning = false;
+                _ops.Scanning = false;
                 FilesTable.IsEnabled = true;
                 Badge.Busy = false;
                 CancelButton.IsVisible = false;
@@ -282,6 +288,24 @@ public partial class MainWindow
         }
         catch (IOException) { return 0; }
         catch (ArgumentException) { return 0; }
+    }
+
+    /// <summary>
+    /// Fortschritt beim Lesen der MFT. Der Verzeichnisscan zeigt seinen Baum beim Wachsen; die MFT
+    /// liefert erst am Ende einen — ohne diese Meldung stuende minutenlang nichts in der Statuszeile.
+    /// Eine verspaetet eintreffende Meldung eines abgebrochenen oder ersetzten Scans wird verworfen.
+    /// </summary>
+    internal void ReportMftProgress(double fraction)
+    {
+        if (_scan is { } session) OnMftProgress(session, fraction);
+    }
+
+    private void OnMftProgress(CancellationTokenSource session, double fraction)
+    {
+        if (!ReferenceEquals(_scan, session) || session.IsCancellationRequested || _closed) return;
+
+        Badge.Progress = fraction;
+        StatusText.Text = Loc.T("Stat_ReadingMft", Math.Round(fraction * 100));
     }
 
     private void OnScanUpdate(ScanSession.Update update)

@@ -28,7 +28,9 @@ class Program
         };
 
         // Zwei Instanzen wuerden sich Einstellungen und Snapshots gegenseitig ueberschreiben.
-        if (!SingleInstance.Claim()) return;
+        // Nach einem Neustart mit erhoehten Rechten haelt der alte Prozess die Sperre noch kurz.
+        bool restarted = CommandLine.IsElevatedRestart(Environment.GetCommandLineArgs());
+        if (!SingleInstance.Claim(restarted ? SingleInstance.PredecessorWait : TimeSpan.Zero)) return;
 
         // Wo die Anwendung schreibt, haengt davon ab, ob sie paketiert laeuft — und das
         // entscheidet, ob ihre Daten die Deinstallation ueberleben.

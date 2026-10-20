@@ -11,7 +11,6 @@ public partial class MainWindow
     private FileChangeMonitor? _watcher;
     private readonly HashSet<string> _pendingRefresh = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _refresh;
-    private bool _refreshRunning;
     private bool _closed;
 
     private void StartWatching()
@@ -44,7 +43,7 @@ public partial class MainWindow
 
     private async Task DrainChangesAsync()
     {
-        if (_closed || _benchmarkOpen || _scanRunning || _cleanupRunning || _refreshRunning || _store is null || _pendingRefresh.Count == 0) return;
+        if (_closed || !_ops.CanChangeFiles || _store is null || _pendingRefresh.Count == 0) return;
         // Refresh the shallowest queued directory first; it covers any deeper notifications.
         string path = _pendingRefresh.OrderBy(p => p.Length).First();
         _pendingRefresh.RemoveWhere(p => p.Equals(path, StringComparison.OrdinalIgnoreCase)
@@ -64,7 +63,7 @@ public partial class MainWindow
 
     internal Task RefreshFolderAsync(int node)
     {
-        if (_closed || _benchmarkOpen || _scanRunning || _cleanupRunning || _refreshRunning || !IsLive(node)) return Task.CompletedTask;
+        if (_closed || !_ops.CanChangeFiles || !IsLive(node)) return Task.CompletedTask;
         return _refreshTask = RefreshFolderCore(node);
     }
 
@@ -74,7 +73,7 @@ public partial class MainWindow
         string viewed = original.PathOf(_currentRoot);
         using var refresh = new CancellationTokenSource();
         _refresh = refresh;
-        _refreshRunning = true;
+        _ops.Refreshing = true;
         _dupSearch?.Cancel();
         FilesTable.IsEnabled = false;
         CleanupRun.IsEnabled = false;
@@ -120,7 +119,7 @@ public partial class MainWindow
             if (ReferenceEquals(_refresh, refresh))
             {
                 _refresh = null;
-                _refreshRunning = false;
+                _ops.Refreshing = false;
                 FilesTable.IsEnabled = true;
                 CleanupRun.IsEnabled = true;
                 RefreshFolderButton.IsEnabled = true;

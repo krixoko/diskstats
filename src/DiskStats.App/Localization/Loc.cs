@@ -54,6 +54,11 @@ public static class Loc
         ["Move_Partial"] = ("Move cancelled. Some files may already have moved; scan refreshed.", "Verschieben abgebrochen. Einige Dateien können bereits verschoben sein; Scan aktualisiert."),
         ["Move_Failed"] = ("Move incomplete (Windows error {0}). Scan refreshed.", "Verschieben unvollständig (Windows-Fehler {0}). Scan aktualisiert."),
         ["Move_Error"] = ("Cannot move files: {0}", "Dateien können nicht verschoben werden: {0}"),
+        ["Move_Protected"] = ("{0}: {1} — cannot be moved", "{0}: {1} — kann nicht verschoben werden"),
+        ["Move_Linked"] = ("{0} is a link or a cloud-only entry and is not moved, to stay safe.", "{0} ist eine Verknüpfung oder ein reiner Cloud-Eintrag und wird sicherheitshalber nicht verschoben."),
+        ["Move_BadDestination"] = ("The destination {0} is inside the selection or already its folder.", "Das Ziel {0} liegt in der Auswahl oder ist bereits ihr Ordner."),
+        ["Move_NoDestination"] = ("The destination folder {0} does not exist (any more).", "Der Zielordner {0} existiert nicht (mehr)."),
+        ["Move_NoSpace"] = ("Not enough free space on {0}: {1} needed, {2} available.", "Nicht genug freier Speicher auf {0}: {1} nötig, {2} frei."),
         ["Trend_Title"] = ("History", "Verlauf"),
         ["Trend_Week"] = ("7 days", "7 Tage"),
         ["Trend_Month"] = ("30 days", "30 Tage"),
@@ -334,6 +339,7 @@ public static class Loc
         ["Clean_BinError"] = ("Recycle Bin: {0} on {1} entries",
                               "Papierkorb: {0} bei {1} Einträgen"),
         ["Clean_ErrorCode"] = ("Error code {0}", "Fehlercode {0}"),
+        ["Clean_LongPath"] = ("At least one path is longer than 260 characters, which the Windows Recycle Bin may not handle.", "Mindestens ein Pfad ist länger als 260 Zeichen — das kann der Windows-Papierkorb unter Umständen nicht verarbeiten."),
 
         // ---------- Ablehnungen ----------
         ["Deny_NoPath"] = ("No path", "Kein Pfad"),
@@ -454,6 +460,7 @@ public static class Loc
         // ---------- Statuszeile ----------
         ["Stat_Scanning"] = ("Scanning …  {0} entries", "Scan läuft …  {0} Einträge"),
         ["Stat_ScanningShort"] = ("Scanning …", "Scan läuft …"),
+        ["Stat_ReadingMft"] = ("Reading the file table (MFT) …  {0} %", "Dateitabelle (MFT) wird gelesen …  {0} %"),
         ["Stat_Done"] = ("Scanned in {0} s{1}{2}", "Scan in {0} s{1}{2}"),
         ["Stat_Unreadable"] = ("  ·  {0} folders unreadable", "  ·  {0} Ordner nicht lesbar"),
         ["Stat_Gap"] = ("  ·  {0} {1} Windows reports", "  ·  {0} {1} Windows meldet"),

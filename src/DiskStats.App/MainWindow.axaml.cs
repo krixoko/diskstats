@@ -57,13 +57,13 @@ public partial class MainWindow : Window
     /// <summary>Worauf rechtsgeklickt wurde. Siehe <see cref="BuildContextMenu"/>.</summary>
     private int _menuNode = -1;
     private CancellationTokenSource? _scan;
-    private bool _scanRunning;
-    private bool _cleanupRunning;
+    /// <summary>Was gerade laeuft und was deshalb nicht geht — siehe <see cref="OperationGate"/>.</summary>
+    private readonly OperationGate _ops = new();
     private FileQuery _fileQuery = new();
     // Alle Snapshot-Speicherungen laufen durch dieselbe Warteschlange — nie zwei zugleich.
     private readonly SnapshotQueue _snapshots = new();
     private Task _snapshotWork = Task.CompletedTask;
-    internal bool ScanRunning => _scanRunning;
+    internal bool ScanRunning => _ops.Scanning;
 
     public MainWindow() : this(Environment.GetCommandLineArgs()) { }
 
@@ -241,7 +241,7 @@ public partial class MainWindow : Window
         var exclude = new MenuItem { Header = Loc.T("Filter_ExcludeSelected") };
         exclude.Click += (_, _) =>
         {
-            if (!IsLive(_menuNode) || _menuNode == 0 || _scanRunning || _cleanupRunning || _refreshRunning) return;
+            if (!IsLive(_menuNode) || _menuNode == 0 || _ops.AnyRunning) return;
             string relative = Path.GetRelativePath(_store.RootPath, _store.PathOf(_menuNode)).Replace('\\', '/');
             // Kein Eintrag doppelt: derselbe Ausschluss zweimal kostet nur Zeit beim Abgleich.
             AppSettings.Apply(s =>

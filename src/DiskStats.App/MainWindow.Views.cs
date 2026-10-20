@@ -355,7 +355,7 @@ public partial class MainWindow
 
     private async Task EditFilters()
     {
-        if (_scanRunning || _cleanupRunning) return;
+        if (!_ops.CanBrowse) return;
         FilterSelection? selected = await new FilterWindow(_fileQuery, AppSettings.Current.ExcludedPaths)
             .ShowDialog<FilterSelection?>(this);
         if (selected is null) return;

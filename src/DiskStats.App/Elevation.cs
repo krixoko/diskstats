@@ -118,6 +118,9 @@ public static class Elevation
             foreach (string argument in ArgumentsFor(arguments))
                 process.StartInfo.ArgumentList.Add(argument);
 
+            // Der alte Prozess haelt die Einzelinstanz-Sperre, bis er sich geschlossen hat.
+            process.StartInfo.ArgumentList.Add(CommandLine.ElevatedRestart);
+
             return process.Start();
         }
         // Abbruch der Windows-Rueckfrage kommt als Win32Exception zurueck.

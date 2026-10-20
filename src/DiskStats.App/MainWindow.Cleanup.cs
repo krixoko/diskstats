@@ -32,7 +32,7 @@ public partial class MainWindow
     /// </summary>
     internal void Stage(int node)
     {
-        if (_scanRunning || !IsLive(node)) return;
+        if (!_ops.CanStage || !IsLive(node)) return;
 
         Refusal? refused = _cleanup.Add(_store, node);
         StatusText.Text = refused is null
@@ -100,12 +100,12 @@ public partial class MainWindow
         Func<string, Task<bool>>? confirm = null,
         Func<IReadOnlyList<string>, Task<RecycleBin.Result>>? recycle = null)
     {
-        if (_store is null || _benchmarkOpen || _cleanup.Count == 0 || _scanRunning || _cleanupRunning || _refreshRunning) return;
+        if (_store is null || _cleanup.Count == 0 || !_ops.CanChangeFiles) return;
 
         NodeStore store = _store;
         CleanupList.Item[] items = _cleanup.Items.ToArray();
         string question = Loc.T("Clean_Confirm", CleanupSummary(items).TrimEnd());
-        _cleanupRunning = true;
+        _ops.ChangingFiles = true;
         CleanupRun.IsEnabled = false;
         BrowseButton.IsEnabled = false;
         DuplicatesButton.IsEnabled = false;
@@ -177,6 +177,8 @@ public partial class MainWindow
                     : result.Ok ? Loc.T("Clean_Remaining") : Loc.T("Clean_ErrorCode", result.Code);
                 DiagnosticLog.Write(Loc.T("Clean_BinError", reason, paths.Length));
                 StatusText.Text = Loc.T("Clean_Partial", reason);
+                if (!result.Ok && !result.Aborted && paths.Any(RecycleBin.ExceedsClassicPathLimit))
+                    StatusText.Text += " " + Loc.T("Clean_LongPath");
                 if (refreshed.Errors > 0)
                     StatusText.Text += " " + Loc.T("Stat_Unreadable", refreshed.Errors);
             }
@@ -203,11 +205,11 @@ public partial class MainWindow
         }
         finally
         {
-            _cleanupRunning = false;
+            _ops.ChangingFiles = false;
             Badge.Busy = false;
-            CleanupRun.IsEnabled = !_scanRunning;
+            CleanupRun.IsEnabled = !_ops.Scanning;
             BrowseButton.IsEnabled = true;
-            DuplicatesButton.IsEnabled = !_scanRunning;
+            DuplicatesButton.IsEnabled = !_ops.Scanning;
             ShowCleanup();
             DrainChanges();
         }

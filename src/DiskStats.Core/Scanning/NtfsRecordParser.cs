@@ -82,7 +82,17 @@ public static class NtfsRecordParser
                         if (!names.Contains(entry)) names.Add(entry);
                     }
                 }
-                else if (type == 0x80 && nameLength == 0) size = valueLength;
+                else if (type == 0x80 && nameLength == 0)
+                {
+                    size = valueLength;
+
+                    // Resident gespeicherte Daten belegen keine Cluster, und im Record steht dafuer
+                    // 0. Windows meldet ueber seine Dateischnittstelle aber die Groesse auf acht Byte
+                    // aufgerundet (100 -> 104), und genau diese Zahl liefert der Verzeichnisscan.
+                    // Gemessen an einem echten NTFS-Laufwerk (NtfsDifferentialTests): Ohne diesen
+                    // Ausgleich unterscheiden sich beide Scans bei jeder kleinen Datei.
+                    allocation = (valueLength + 7L) & ~7L;
+                }
             }
             else if (type == 0x80 && nameLength == 0)
             {

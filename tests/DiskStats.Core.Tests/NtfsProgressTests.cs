@@ -102,4 +102,27 @@ public sealed class NtfsProgressTests
 
         Assert.Throws<InvalidDataException>(() => NtfsRecordParser.Parse(raw, 42, 512, keepDataRuns: false));
     }
+
+    // Das Fixture-Attribut bietet acht Byte Platz; groessere Werte (100 -> 104) prueft der
+    // Differenztest auf einem echten NTFS-Laufwerk.
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 8)]
+    [InlineData(4, 8)]
+    [InlineData(5, 8)]
+    [InlineData(8, 8)]
+    public void Resident_gespeicherte_daten_werden_wie_bei_windows_auf_acht_byte_aufgerundet(int bytes, long expected)
+    {
+        byte[] raw = NtfsScannerTests.Record(nonresident: false);
+        // Wertlaenge des unbenannten $DATA-Attributs: das Attribut steht nach $STANDARD_INFORMATION
+        // (72 Byte ab 56) und $FILE_NAME; "data" (4 Byte) ist sein Inhalt.
+        int attribute = raw.AsSpan().IndexOf("data"u8) - 24;
+        Assert.Equal(0x80u, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(attribute)));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(raw.AsSpan(attribute + 16), (uint)bytes);
+
+        NtfsFileRecord record = Assert.IsType<NtfsFileRecord>(NtfsRecordParser.Parse(raw, 42, 512));
+
+        Assert.Equal(bytes, record.Size);
+        Assert.Equal(expected, record.Allocation);
+    }
 }

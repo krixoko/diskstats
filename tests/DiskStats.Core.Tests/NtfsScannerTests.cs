@@ -59,7 +59,8 @@ public sealed class NtfsScannerTests
         Assert.Equal("report.bin", Assert.Single(record.Names).Name);
         Assert.Equal(5UL | (3UL << 48), record.Names[0].Parent);
         Assert.Equal(nonresident ? 9000 : 4, record.Size);
-        Assert.Equal(nonresident ? 12288 : 0, record.Allocation);
+        // Resident: vier Byte Daten, von Windows auf acht aufgerundet gemeldet - wie der Verzeichnisscan.
+        Assert.Equal(nonresident ? 12288 : 8, record.Allocation);
         Assert.Equal(new DateTime(2020, 1, 2).Ticks, record.Modified);
         Assert.False(record.Directory);
         if (nonresident) Assert.Equal(new NtfsDataRun(0, 10, 3), Assert.Single(record.DataRuns));

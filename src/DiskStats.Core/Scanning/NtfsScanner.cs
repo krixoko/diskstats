@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using NativeFileHandle = Microsoft.Win32.SafeHandles.SafeFileHandle;
+using DiskStats.Core.Interop;
 using DiskStats.Core.Storage;
 
 namespace DiskStats.Core.Scanning;
@@ -9,6 +10,21 @@ namespace DiskStats.Core.Scanning;
 /// <summary>Reads the MFT in sequential blocks from a read-only volume handle.</summary>
 public static class NtfsScanner
 {
+    // DeviceIoControl-Codes, aus winioctl.h.
+    private const uint FsctlGetNtfsVolumeData = 0x90064;
+    private const uint FsctlGetNtfsFileRecord = 0x90068;
+
+    /// <summary>Referenznummer des Wurzelverzeichnisses und der ersten Nutzer-Records.</summary>
+    private const ulong RootRecordNumber = 5;
+    private const ulong FirstUserRecordNumber = 16;
+    private const ulong RecordNumberMask = 0x0000ffffffffffffUL;
+
+    /// <summary>
+    /// Anteil des Fortschrittsbalkens, der auf das Lesen der MFT entfaellt. Der Rest gehoert dem
+    /// Aufbau des Baums — der dauert bei Millionen Eintraegen spuerbar, aber kuerzer als das Lesen.
+    /// </summary>
+    private const double ReadShare = 0.8;
+
     public static bool TryScan(string root, WalkOptions options, CancellationToken cancel,
         out NodeBuffer? buffer, out string? unavailable)
         => TryScan(root, options, cancel, new ScanErrorLog(), out buffer, out unavailable);
@@ -24,7 +40,7 @@ public static class NtfsScanner
     {
         buffer = null;
         unavailable = null;
-        int damaged = 0;
+        var progress = new ScanProgress(options.MftProgress);
         try
         {
             if (!OperatingSystem.IsWindows()) throw new NotSupportedException("NTFS scanning requires Windows.");
@@ -32,87 +48,25 @@ public static class NtfsScanner
             string drive = Path.GetPathRoot(root)!;
             if (drive.Length != 3 || new DriveInfo(drive).DriveFormat != "NTFS")
                 throw new NotSupportedException("Direct scanning requires a local NTFS volume.");
-            using NativeFileHandle volume = CreateFileW(@"\\.\" + drive[..2], 0x80000000, 7, IntPtr.Zero, 3, 0, IntPtr.Zero);
+            using NativeFileHandle volume = NativeMethods.CreateFileW(@"\\.\" + drive[..2],
+                NativeMethods.GenericRead, NativeMethods.ShareAll, IntPtr.Zero, NativeMethods.OpenExisting, 0, IntPtr.Zero);
             if (volume.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
-            byte[] data = Control(volume, 0x90064, [], 128);
-            if (data.Length < 96) throw new InvalidDataException("Truncated NTFS volume information.");
-            ulong serial = BinaryPrimitives.ReadUInt64LittleEndian(data);
-            int sector = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(40)));
-            int cluster = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(44)));
-            int recordSize = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(48)));
-            long validLength = BinaryPrimitives.ReadInt64LittleEndian(data.AsSpan(56));
-            if (recordSize < 512 || recordSize > 65536 || cluster < 512 || validLength < recordSize)
-                throw new InvalidDataException("Invalid NTFS geometry.");
-            NtfsFileRecord mft = NtfsRecordParser.Parse(ReadRecord(volume, 0, recordSize).Bytes, 0, sector)
+
+            Geometry geometry = ReadGeometry(volume);
+            NtfsFileRecord mft = NtfsRecordParser.Parse(ReadRecord(volume, 0, geometry.RecordSize).Bytes, 0, geometry.Sector)
                 ?? throw new InvalidDataException("MFT record unavailable.");
-            var records = new Dictionary<ulong, NtfsFileRecord>();
-            long covered = 0;
-            foreach (NtfsDataRun run in mft.DataRuns.OrderBy(r => r.Vcn))
-            {
-                if (run.Lcn < 0 || checked(run.Vcn * cluster) != covered) break;
-                covered = checked(covered + run.Clusters * cluster);
-            }
-            if (covered >= validLength && cluster % recordSize == 0)
-            {
-                byte[] block = new byte[Math.Max(1024 * 1024, recordSize)];
-                foreach (NtfsDataRun run in mft.DataRuns.OrderBy(r => r.Vcn))
-                {
-                    long logical = checked(run.Vcn * cluster);
-                    long length = Math.Min(checked(run.Clusters * cluster), validLength - logical);
-                    for (long offset = 0; offset < length;)
-                    {
-                        cancel.ThrowIfCancellationRequested();
-                        int take = (int)Math.Min(block.Length, length - offset);
-                        take -= take % recordSize;
-                        if (take == 0) break;
-                        ReadExactly(volume, block.AsSpan(0, take), checked(run.Lcn * cluster + offset));
-                        for (int p = 0; p < take; p += recordSize)
-                        {
-                            ulong index = (ulong)((logical + offset + p) / recordSize);
-                            // Ein einzelner zerrissener Record (gerade im Schreiben, oder BAAD)
-                            // kostet einen Eintrag, nicht den Scan. Haeufen sie sich, stimmt
-                            // etwas Grundsaetzliches nicht — dann uebernimmt der Verzeichnisscan.
-                            NtfsFileRecord? record;
-                            try { record = NtfsRecordParser.Parse(block.AsSpan(p, recordSize), index, sector); }
-                            catch (InvalidDataException)
-                            {
-                                errors.Record($"MFT #{index}", unchecked((int)0x80070570)); // ERROR_FILE_CORRUPT
-                                if (++damaged > MaxDamagedRecords)
-                                    throw new InvalidDataException($"{damaged} beschaedigte MFT-Records.");
-                                continue;
-                            }
-                            if (record is not null) records[record.Reference] = record;
-                        }
-                        offset += take;
-                    }
-                    if (logical + length >= validLength) break;
-                }
-            }
-            else
-            {
-                // Fragmented MFT attribute lists may not fit in the base record. The filesystem
-                // can retrieve each complete FILE record without interpreting those extents here.
-                ulong index = checked((ulong)(validLength / recordSize - 1));
-                while (true)
-                {
-                    cancel.ThrowIfCancellationRequested();
-                    var record = ReadRecord(volume, index, recordSize);
-                    if (record.Index > index) throw new InvalidDataException("Unexpected NTFS record order.");
-                    NtfsFileRecord? parsed = NtfsRecordParser.Parse(record.Bytes, record.Index, sector);
-                    if (parsed is not null) records[parsed.Reference] = parsed;
-                    if (record.Index == 0) break;
-                    index = record.Index - 1;
-                }
-            }
+
+            Dictionary<ulong, NtfsFileRecord> records = ReadAllRecords(volume, geometry, mft, cancel, errors, progress);
             cancel.ThrowIfCancellationRequested();
-            if (records.Values.Any(r => (r.Reference & 0x0000ffffffffffffUL) >= 16 && r.HasAttributeList
-                && (r.Names.Count == 0 || (!r.Directory && r.Links > r.Names.Count))))
-                throw new NotSupportedException("NTFS extension records require directory enumeration for complete names.");
+
+            RequireCompleteNames(records);
             ulong rootReference = root.TrimEnd('\\').Equals(drive.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)
-                ? records.Values.Single(r => (r.Reference & 0x0000ffffffffffffUL) == 5).Reference
+                ? records.Values.Single(r => (r.Reference & RecordNumberMask) == RootRecordNumber).Reference
                 : FileStorageInfo.Read(root).Identity.Low;
             if (!records.ContainsKey(rootReference)) throw new IOException("The selected directory was not found in the MFT.");
-            buffer = BuildTree(records.Values, rootReference, serial, root, options, cancel, errors);
+
+            buffer = BuildTree(records.Values, rootReference, geometry.Serial, root, options, cancel, errors, progress);
+            progress.Report(1);
             return true;
         }
         // InvalidDataException und EndOfStreamException gehoeren dazu: Genau sie wirft der Parser
@@ -127,13 +81,131 @@ public static class NtfsScanner
         }
     }
 
+    /// <summary>Was das Dateisystem ueber sich verraet und was zum Lesen der MFT noetig ist.</summary>
+    private readonly record struct Geometry(ulong Serial, int Sector, int Cluster, int RecordSize, long ValidLength);
+
+    private static Geometry ReadGeometry(NativeFileHandle volume)
+    {
+        byte[] data = Control(volume, FsctlGetNtfsVolumeData, [], 128);
+        if (data.Length < 96) throw new InvalidDataException("Truncated NTFS volume information.");
+        ulong serial = BinaryPrimitives.ReadUInt64LittleEndian(data);
+        int sector = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(40)));
+        int cluster = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(44)));
+        int recordSize = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(48)));
+        long validLength = BinaryPrimitives.ReadInt64LittleEndian(data.AsSpan(56));
+        if (recordSize < 512 || recordSize > 65536 || cluster < 512 || validLength < recordSize)
+            throw new InvalidDataException("Invalid NTFS geometry.");
+        return new Geometry(serial, sector, cluster, recordSize, validLength);
+    }
+
+    /// <summary>
+    /// Liest alle Records der MFT. Der schnelle Weg liest sie blockweise; er setzt voraus, dass der
+    /// $MFT-Record die ganze Tabelle lueckenlos beschreibt. Sonst bleibt der langsame Weg: Das
+    /// Dateisystem liefert jeden Record einzeln und setzt fragmentierte Attributlisten selbst zusammen.
+    /// </summary>
+    private static Dictionary<ulong, NtfsFileRecord> ReadAllRecords(NativeFileHandle volume, Geometry g,
+        NtfsFileRecord mft, CancellationToken cancel, ScanErrorLog errors, ScanProgress progress)
+    {
+        long expected = g.ValidLength / g.RecordSize;
+
+        // Vorab dimensioniert, damit das Wachsen nicht kurzzeitig den doppelten Speicher braucht.
+        var records = new Dictionary<ulong, NtfsFileRecord>((int)Math.Min(expected, 4_000_000));
+
+        long covered = 0;
+        foreach (NtfsDataRun run in mft.DataRuns.OrderBy(r => r.Vcn))
+        {
+            if (run.Lcn < 0 || checked(run.Vcn * g.Cluster) != covered) break;
+            covered = checked(covered + run.Clusters * g.Cluster);
+        }
+
+        if (covered >= g.ValidLength && g.Cluster % g.RecordSize == 0)
+            ReadMftInBlocks(volume, g, mft, records, cancel, errors, progress);
+        else
+            ReadMftRecordByRecord(volume, g, records, cancel, progress);
+
+        return records;
+    }
+
+    private static void ReadMftInBlocks(NativeFileHandle volume, Geometry g, NtfsFileRecord mft,
+        Dictionary<ulong, NtfsFileRecord> records, CancellationToken cancel, ScanErrorLog errors, ScanProgress progress)
+    {
+        int damaged = 0;
+        byte[] block = new byte[Math.Max(1024 * 1024, g.RecordSize)];
+        foreach (NtfsDataRun run in mft.DataRuns.OrderBy(r => r.Vcn))
+        {
+            long logical = checked(run.Vcn * g.Cluster);
+            long length = Math.Min(checked(run.Clusters * g.Cluster), g.ValidLength - logical);
+            for (long offset = 0; offset < length;)
+            {
+                cancel.ThrowIfCancellationRequested();
+                int take = (int)Math.Min(block.Length, length - offset);
+                take -= take % g.RecordSize;
+                if (take == 0) break;
+                ReadExactly(volume, block.AsSpan(0, take), checked(run.Lcn * g.Cluster + offset));
+                for (int p = 0; p < take; p += g.RecordSize)
+                {
+                    ulong index = (ulong)((logical + offset + p) / g.RecordSize);
+                    // Ein einzelner zerrissener Record (gerade im Schreiben, oder BAAD)
+                    // kostet einen Eintrag, nicht den Scan. Haeufen sie sich, stimmt
+                    // etwas Grundsaetzliches nicht — dann uebernimmt der Verzeichnisscan.
+                    NtfsFileRecord? record;
+                    try { record = NtfsRecordParser.Parse(block.AsSpan(p, g.RecordSize), index, g.Sector, keepDataRuns: false); }
+                    catch (InvalidDataException)
+                    {
+                        errors.Record($"MFT #{index}", unchecked((int)0x80070570)); // ERROR_FILE_CORRUPT
+                        if (++damaged > MaxDamagedRecords)
+                            throw new InvalidDataException($"{damaged} beschaedigte MFT-Records.");
+                        continue;
+                    }
+                    if (record is not null) records[record.Reference] = record;
+                }
+                offset += take;
+                progress.Report(ReadShare * (logical + offset) / g.ValidLength);
+            }
+            if (logical + length >= g.ValidLength) break;
+        }
+    }
+
+    private static void ReadMftRecordByRecord(NativeFileHandle volume, Geometry g,
+        Dictionary<ulong, NtfsFileRecord> records, CancellationToken cancel, ScanProgress progress)
+    {
+        // Fragmented MFT attribute lists may not fit in the base record. The filesystem
+        // can retrieve each complete FILE record without interpreting those extents here.
+        ulong last = checked((ulong)(g.ValidLength / g.RecordSize - 1));
+        ulong index = last;
+        while (true)
+        {
+            cancel.ThrowIfCancellationRequested();
+            var record = ReadRecord(volume, index, g.RecordSize);
+            if (record.Index > index) throw new InvalidDataException("Unexpected NTFS record order.");
+            NtfsFileRecord? parsed = NtfsRecordParser.Parse(record.Bytes, record.Index, g.Sector, keepDataRuns: false);
+            if (parsed is not null) records[parsed.Reference] = parsed;
+            if (record.Index == 0) break;
+            index = record.Index - 1;
+            // Rueckwaerts gelesen: je kleiner der Index, desto weiter ist man.
+            if (last > 0) progress.Report(ReadShare * (last - index) / last);
+        }
+    }
+
+    /// <summary>
+    /// Records mit Attributliste, deren Namen oder Verlinkungen im Basis-Record fehlen, lassen sich
+    /// hier nicht vollstaendig aufloesen — dann muss der Verzeichnisscan ran.
+    /// </summary>
+    private static void RequireCompleteNames(Dictionary<ulong, NtfsFileRecord> records)
+    {
+        if (records.Values.Any(r => (r.Reference & RecordNumberMask) >= FirstUserRecordNumber && r.HasAttributeList
+            && (r.Names.Count == 0 || (!r.Directory && r.Links > r.Names.Count))))
+            throw new NotSupportedException("NTFS extension records require directory enumeration for complete names.");
+    }
+
     internal static NodeBuffer BuildTree(IEnumerable<NtfsFileRecord> records, ulong rootReference, ulong serial,
-        string root, WalkOptions options, CancellationToken cancel, ScanErrorLog? errors = null)
+        string root, WalkOptions options, CancellationToken cancel, ScanErrorLog? errors = null,
+        ScanProgress? progress = null)
     {
         var children = new Dictionary<ulong, List<(NtfsFileRecord Record, string Name)>>();
         foreach (NtfsFileRecord record in records)
         {
-            if ((record.Reference & 0x0000ffffffffffffUL) < 16) continue; // internal NTFS metadata
+            if ((record.Reference & RecordNumberMask) < FirstUserRecordNumber) continue; // internal NTFS metadata
             foreach (NtfsName name in record.Names)
             {
                 if (!children.TryGetValue(name.Parent, out var list)) children[name.Parent] = list = [];
@@ -146,9 +218,16 @@ public static class NtfsScanner
         var exclusions = new ScanExclusions(options.ExclusionRoot ?? root, options.ExcludedPaths);
         queue.Enqueue((rootReference, 0, root));
         int next = 0;
+        int visited = 0;
         while (queue.TryDequeue(out var parent))
         {
             cancel.ThrowIfCancellationRequested();
+            visited++;
+            // Nur eine Naehrung: "children" kennt Ordner mit Inhalt, die Schlange auch leere und
+            // nur die unterhalb der Wurzel. Der Balken kann daher vor dem Ende 100 % erreichen oder
+            // knapp darunter bleiben — ScanProgress begrenzt ihn, TryScan meldet am Ende 100 %.
+            if (progress is not null && children.Count > 0)
+                progress.Report(ReadShare + (1 - ReadShare) * visited / children.Count);
             if (!children.TryGetValue(parent.Reference, out var entries)) continue;
             foreach (var (record, name) in entries)
             {
@@ -198,17 +277,17 @@ public static class NtfsScanner
         byte[] input = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(input, index);
         // The native structure is padded to 16 bytes although FileRecordBuffer starts at 12.
-        byte[] output = Control(volume, 0x90068, input, size + 16);
+        byte[] output = Control(volume, FsctlGetNtfsFileRecord, input, size + 16);
         if (output.Length < 12) throw new InvalidDataException("Truncated NTFS record response.");
         int length = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(output.AsSpan(8)));
         if (length != size || output.Length < length + 12) throw new InvalidDataException("Unexpected NTFS record size.");
-        return (BinaryPrimitives.ReadUInt64LittleEndian(output) & 0x0000ffffffffffffUL, output.AsSpan(12, length).ToArray());
+        return (BinaryPrimitives.ReadUInt64LittleEndian(output) & RecordNumberMask, output.AsSpan(12, length).ToArray());
     }
 
     private static byte[] Control(NativeFileHandle volume, uint code, byte[] input, int size)
     {
         byte[] output = new byte[size];
-        if (!DeviceIoControl(volume, code, input, input.Length, output, output.Length, out int returned, IntPtr.Zero))
+        if (!NativeMethods.DeviceIoControl(volume, code, input, input.Length, output, output.Length, out int returned, IntPtr.Zero))
             throw new Win32Exception(Marshal.GetLastWin32Error());
         return output.AsSpan(0, returned).ToArray();
     }
@@ -223,12 +302,4 @@ public static class NtfsScanner
             offset += read;
         }
     }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern NativeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security,
-        uint creation, uint flags, IntPtr template);
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DeviceIoControl(NativeFileHandle volume, uint code, byte[] input, int inputLength,
-        byte[] output, int outputLength, out int returned, IntPtr overlapped);
 }

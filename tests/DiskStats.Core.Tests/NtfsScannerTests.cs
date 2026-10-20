@@ -7,7 +7,7 @@ namespace DiskStats.Core.Tests;
 
 public sealed class NtfsScannerTests
 {
-    private static byte[] Record(bool nonresident)
+    internal static byte[] Record(bool nonresident)
     {
         byte[] b = new byte[1024];
         "FILE"u8.CopyTo(b);

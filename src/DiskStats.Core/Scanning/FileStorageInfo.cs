@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using DiskStats.Core.Interop;
 using NativeFileHandle = Microsoft.Win32.SafeHandles.SafeFileHandle;
 
 namespace DiskStats.Core.Scanning;
@@ -20,7 +21,7 @@ public readonly record struct FileStorageInfo(long AllocatedBytes, FileIdentity 
     {
         if (!OperatingSystem.IsWindows() || (attributes & FileAttributes.ReparsePoint) != 0)
             return Unknown;
-        using NativeFileHandle file = CreateFileW(ForNative(path), 0x80, 7, IntPtr.Zero, 3,
+        using NativeFileHandle file = NativeMethods.CreateFileW(ForNative(path), 0x80, 7, IntPtr.Zero, 3,
             0x02000000 | 0x00200000 | 0x00100000, IntPtr.Zero);
         if (file.IsInvalid || !GetStandardInfo(file, 1, out StandardInfo standard, 24)) return Unknown;
 
@@ -75,9 +76,6 @@ public readonly record struct FileStorageInfo(long AllocatedBytes, FileIdentity 
     [StructLayout(LayoutKind.Sequential)]
     private struct IdInfo { public ulong Volume, Low, High; }
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern NativeFileHandle CreateFileW(string name, uint access, uint share,
-        IntPtr security, uint creation, uint flags, IntPtr template);
     [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetStandardInfo(NativeFileHandle file, int kind, out StandardInfo info, uint size);

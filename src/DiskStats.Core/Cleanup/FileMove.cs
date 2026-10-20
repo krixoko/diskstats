@@ -1,6 +1,57 @@
-using System.Runtime.InteropServices;
+using DiskStats.Core.Interop;
 
 namespace DiskStats.Core.Cleanup;
+
+/// <summary>Warum eine Verschiebung gar nicht erst begonnen wird.</summary>
+public enum FileMoveProblem
+{
+    /// <summary>Der Zielordner existiert nicht (mehr).</summary>
+    DestinationMissing,
+
+    /// <summary>Das Ziel liegt in der Auswahl oder ist ihr Ordner — die Verschiebung waere sinnlos oder zirkulaer.</summary>
+    InvalidDestination,
+
+    /// <summary>Ein Eintrag steht auf der Schutzliste, siehe <see cref="FileMoveException.Refusal"/>.</summary>
+    Protected,
+
+    /// <summary>Verknuepfung oder reiner Cloud-Eintrag: Verschieben koennte das Ziel statt der Verknuepfung treffen.</summary>
+    Linked,
+
+    /// <summary>Am Ziel ist nicht genug Platz.</summary>
+    InsufficientSpace,
+}
+
+/// <summary>
+/// Eine Verschiebung wurde im Vorfeld abgelehnt. Der Grund steht als Tatsache da, nicht als Satz:
+/// Der Text entsteht in der Oberflaeche, denn nur die kennt die eingestellte Sprache — wie bei
+/// <see cref="Refusal"/>.
+/// </summary>
+public sealed class FileMoveException : IOException
+{
+    public FileMoveException(FileMoveProblem problem, string path, Refusal? refusal = null,
+        long needed = 0, long available = 0)
+        : base($"{problem}: {path}")
+    {
+        Problem = problem;
+        Path = path;
+        Refusal = refusal;
+        Needed = needed;
+        Available = available;
+    }
+
+    public FileMoveProblem Problem { get; }
+
+    /// <summary>Der betroffene Eintrag oder Zielordner.</summary>
+    public string Path { get; }
+
+    /// <summary>Bei <see cref="FileMoveProblem.Protected"/>: Warum der Eintrag gesperrt ist.</summary>
+    public Refusal? Refusal { get; }
+
+    /// <summary>Bei <see cref="FileMoveProblem.InsufficientSpace"/>: benoetigte und freie Bytes.</summary>
+    public long Needed { get; }
+
+    public long Available { get; }
+}
 
 /// <summary>Preflight plus the Windows move UI, including progress, cancellation and collision prompts.</summary>
 public static class FileMove
@@ -10,7 +61,7 @@ public static class FileMove
     public static Plan Prepare(IEnumerable<string> sources, string destination, CancellationToken cancel = default)
     {
         destination = Path.GetFullPath(destination);
-        if (!Directory.Exists(destination)) throw new DirectoryNotFoundException(destination);
+        if (!Directory.Exists(destination)) throw new FileMoveException(FileMoveProblem.DestinationMissing, destination);
         RejectLinks(destination);
         var paths = sources.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(p => p.Length).ToList();
@@ -21,11 +72,11 @@ public static class FileMove
             cancel.ThrowIfCancellationRequested();
             if (kept.Any(p => Inside(path, p))) continue;
             if (ProtectedPaths.Reason(path) is { } reason)
-                throw new IOException($"{path}: {reason.Kind}");
+                throw new FileMoveException(FileMoveProblem.Protected, path, reason);
             RejectLinks(path);
             if (Inside(destination, path) || string.Equals(Path.GetDirectoryName(path),
                     destination.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
-                throw new IOException($"Invalid move destination: {destination}");
+                throw new FileMoveException(FileMoveProblem.InvalidDestination, destination);
             var pending = new Stack<string>();
             pending.Push(path);
             while (pending.TryPop(out string? current))
@@ -33,7 +84,7 @@ public static class FileMove
                 cancel.ThrowIfCancellationRequested();
                 FileAttributes attributes = File.GetAttributes(current);
                 if (attributes.HasFlag(FileAttributes.ReparsePoint))
-                    throw new IOException($"Linked or cloud-only entry: {current}");
+                    throw new FileMoveException(FileMoveProblem.Linked, current);
                 if (attributes.HasFlag(FileAttributes.Directory))
                     foreach (string child in Directory.EnumerateFileSystemEntries(current)) pending.Push(child);
                 else bytes = checked(bytes + new FileInfo(current).Length);
@@ -43,7 +94,7 @@ public static class FileMove
         if (kept.Count == 0) throw new ArgumentException("No files selected.");
         // UNC shares are supported by DriveInfo on Windows; inability to query is surfaced before moving.
         long free = new DriveInfo(Path.GetPathRoot(destination)!).AvailableFreeSpace;
-        if (free < bytes) throw new IOException($"Insufficient free space: {free:N0} < {bytes:N0} bytes.");
+        if (free < bytes) throw new FileMoveException(FileMoveProblem.InsufficientSpace, destination, needed: bytes, available: free);
         return new Plan(kept.ToArray(), destination, bytes, free);
     }
 
@@ -55,43 +106,11 @@ public static class FileMove
     {
         for (string? current = path; current is not null; current = Path.GetDirectoryName(current))
             if (File.GetAttributes(current).HasFlag(FileAttributes.ReparsePoint))
-                throw new IOException($"Linked or cloud-only entry: {current}");
+                throw new FileMoveException(FileMoveProblem.Linked, current);
     }
 
     public static RecycleBin.Result Send(Plan plan, nint owner)
-    {
-        if (!OperatingSystem.IsWindows()) return new(false, false, -1);
-        RecycleBin.Result result = default;
-        var thread = new Thread(() =>
-        {
-            var operation = new Operation {
-                Window = owner, Function = 1,
-                From = string.Join('\0', plan.Sources) + "\0\0",
-                To = plan.Destination + "\0\0",
-                Flags = 0x0040, // Allow undo. Never suppress collision or error dialogs.
-            };
-            int code = SHFileOperation(ref operation);
-            result = new(code == 0 && !operation.Aborted, operation.Aborted, code);
-        }) { IsBackground = true, Name = "DiskStats.Move" };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-        return result;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 8)]
-    private struct Operation
-    {
-        public nint Window;
-        public uint Function;
-        [MarshalAs(UnmanagedType.LPWStr)] public string From;
-        [MarshalAs(UnmanagedType.LPWStr)] public string To;
-        public ushort Flags;
-        [MarshalAs(UnmanagedType.Bool)] public bool Aborted;
-        public nint Mappings;
-        public nint ProgressTitle;
-    }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern int SHFileOperation(ref Operation operation);
+        => ShellFileOperation.Run("DiskStats.Move", ShellFileOperation.Move, plan.Sources, plan.Destination,
+            ShellFileOperation.AllowUndo, // Kollisions- und Fehlerdialoge der Shell bleiben bewusst an.
+            owner);
 }

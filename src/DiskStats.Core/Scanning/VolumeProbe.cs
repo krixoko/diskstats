@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using DiskStats.Core.Interop;
+using Microsoft.Win32.SafeHandles;
 
 namespace DiskStats.Core.Scanning;
 
@@ -107,7 +109,7 @@ public static class VolumeProbe
     {
         // Zugriffsrecht 0: reicht fuer Eigenschaftsabfragen und vermeidet die Rechtepruefung,
         // die das Oeffnen zum Lesen ausloesen wuerde.
-        using SafeFileHandle handle = CreateFile(
+        using SafeFileHandle handle = NativeMethods.CreateFileW(
             volume, 0, FileShareReadWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
 
         if (handle.IsInvalid) return StorageKind.Unknown;
@@ -153,7 +155,7 @@ public static class VolumeProbe
         try
         {
             Marshal.StructureToPtr(query, input, fDeleteOld: false);
-            return DeviceIoControl(
+            return NativeMethods.DeviceIoControlPtr(
                 handle, IoctlStorageQueryProperty, input, querySize,
                 buffer, size, out _, IntPtr.Zero);
         }
@@ -170,26 +172,4 @@ public static class VolumeProbe
         public int QueryType;
         public byte AdditionalParameters;
     }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFile(
-        string fileName, uint access, uint share, IntPtr security,
-        uint disposition, uint flags, IntPtr template);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DeviceIoControl(
-        SafeFileHandle device, uint code, IntPtr input, int inputSize,
-        byte[] output, int outputSize, out int returned, IntPtr overlapped);
-}
-
-/// <summary>Schlanker Handle-Wrapper, damit das Volume sicher geschlossen wird.</summary>
-internal sealed class SafeFileHandle() : SafeHandle(new IntPtr(-1), ownsHandle: true)
-{
-    public override bool IsInvalid => handle == new IntPtr(-1) || handle == IntPtr.Zero;
-
-    protected override bool ReleaseHandle() => CloseHandle(handle);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr handle);
 }

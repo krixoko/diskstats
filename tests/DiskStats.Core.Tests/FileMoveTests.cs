@@ -22,7 +22,27 @@ public sealed class FileMoveTests
     public void Rejects_noop_and_destination_inside_source(string destination)
     {
         using var tree = new TestTree().AddFile("source/folder/a.txt", 45).AddDirectory("source/folder/inside");
-        Assert.Throws<IOException>(() => FileMove.Prepare([tree.PathOf("source/folder")], tree.PathOf(destination)));
+        var ex = Assert.Throws<FileMoveException>(() => FileMove.Prepare([tree.PathOf("source/folder")], tree.PathOf(destination)));
+        Assert.Equal(FileMoveProblem.InvalidDestination, ex.Problem);
+    }
+
+    [Fact]
+    public void Missing_destination_is_reported_as_a_fact_not_a_sentence()
+    {
+        using var tree = new TestTree().AddFile("source/a.txt", 45);
+        var ex = Assert.Throws<FileMoveException>(() => FileMove.Prepare([tree.PathOf("source/a.txt")], tree.PathOf("gibt-es-nicht")));
+        Assert.Equal(FileMoveProblem.DestinationMissing, ex.Problem);
+        Assert.EndsWith("gibt-es-nicht", ex.Path);
+    }
+
+    [Fact]
+    public void Protected_sources_carry_the_refusal_so_the_ui_can_explain_it()
+    {
+        using var tree = new TestTree().AddDirectory("target");
+        string system = OperatingSystem.IsWindows() ? @"C:\Windows" : "/";
+        var ex = Assert.Throws<FileMoveException>(() => FileMove.Prepare([system], tree.PathOf("target")));
+        Assert.Equal(FileMoveProblem.Protected, ex.Problem);
+        Assert.NotNull(ex.Refusal);
     }
 
     [Fact]

@@ -12,7 +12,12 @@ public sealed record NtfsFileRecord(ulong Reference, bool Directory, FileAttribu
 /// <summary>Bounds-checked parser for NTFS FILE records, including update-sequence fixups and data runs.</summary>
 public static class NtfsRecordParser
 {
-    public static NtfsFileRecord? Parse(ReadOnlySpan<byte> raw, ulong index, int sectorSize)
+    /// <param name="keepDataRuns">
+    /// Ob die Datenlaeufe im Ergebnis stehen. Geparst und geprueft werden sie immer — ein
+    /// kaputter Lauf kennzeichnet den Record als beschaedigt. Behalten braucht sie nur der
+    /// $MFT-Record selbst; bei Millionen anderer Records waeren sie reiner Speicherballast.
+    /// </param>
+    public static NtfsFileRecord? Parse(ReadOnlySpan<byte> raw, ulong index, int sectorSize, bool keepDataRuns = true)
     {
         if (raw.Length >= 4 && raw[..4].SequenceEqual("BAAD"u8)) throw new InvalidDataException("Damaged NTFS record.");
         if (raw.Length < 48 || !raw[..4].SequenceEqual("FILE"u8)) return null;
@@ -98,7 +103,7 @@ public static class NtfsRecordParser
         }
         if (size < 0 || allocation < -1) throw new InvalidDataException("Invalid NTFS data sizes.");
         return new NtfsFileRecord(reference, directory, attributes, size, allocation, modified,
-            U16(record, 18), names, runs, attributeList);
+            U16(record, 18), names, keepDataRuns ? runs : [], attributeList);
     }
 
     public static IReadOnlyList<NtfsDataRun> ParseRuns(ReadOnlySpan<byte> bytes, long firstVcn = 0)

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using DiskStats.Core.Interop;
 using Microsoft.Win32.SafeHandles;
 
 namespace DiskStats.Core.Benchmarking;
@@ -22,7 +23,7 @@ internal sealed class WindowsBenchmarkFile : IBenchmarkFile
             throw new NotSupportedException("This volume does not support aligned 4 KiB tests.");
 
         // CREATE_NEW + exclusive access + DELETE_ON_CLOSE: no existing file can be overwritten.
-        _handle = CreateFileW(path, 0xC0000000, 0, 0, 1, 0x20000000 | 0x80000000 | 0x04000000, 0);
+        _handle = NativeMethods.CreateFileW(path, 0xC0000000, 0, 0, 1, 0x20000000 | 0x80000000 | 0x04000000, 0);
         if (_handle.IsInvalid)
         {
             int error = Marshal.GetLastWin32Error();
@@ -59,9 +60,6 @@ internal sealed class WindowsBenchmarkFile : IBenchmarkFile
         Marshal.FreeHGlobal(_allocation);
     }
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFileW(string name, uint access, uint share, nint security,
-        uint creation, uint flags, nint template);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetDiskFreeSpaceW(string root, out uint sectorsPerCluster, out uint bytesPerSector,

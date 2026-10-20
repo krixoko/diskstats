@@ -33,7 +33,7 @@ jobs:
         run: dotnet test -c Release --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
       - name: Upload test results and coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults

@@ -52,6 +52,30 @@ public sealed class NodeBuffer : IEntrySink
         }
     }
 
+    /// <summary>Wie <see cref="AddFile(int, ReadOnlySpan{char}, long, long, EntryFlags, FileStorageInfo)"/>, mit einem Namen, der schon UTF-8 ist.</summary>
+    public void AddFileUtf8(int parentId, ReadOnlySpan<byte> utf8Name, long size, long mtimeUtcTicks,
+        EntryFlags flags, FileStorageInfo storage)
+    {
+        lock (_gate)
+        {
+            int offset = _names.Add(utf8Name);
+            _entries.Add(new RawEntry(parentId, OwnId: -1, offset,
+                (ushort)utf8Name.Length, size, mtimeUtcTicks, flags, storage));
+        }
+    }
+
+    /// <summary>Wie <see cref="AddDirectory(int, int, ReadOnlySpan{char}, long, EntryFlags)"/>, mit einem Namen, der schon UTF-8 ist.</summary>
+    public void AddDirectoryUtf8(int parentId, int ownId, ReadOnlySpan<byte> utf8Name, long mtimeUtcTicks, EntryFlags flags)
+    {
+        lock (_gate)
+        {
+            int offset = _names.Add(utf8Name);
+            _entries.Add(new RawEntry(parentId, ownId, offset,
+                (ushort)utf8Name.Length, Size: 0, mtimeUtcTicks, flags));
+            if (ownId > MaxDirectoryId) MaxDirectoryId = ownId;
+        }
+    }
+
     public void AddDirectory(int parentId, int ownId, ReadOnlySpan<char> name, long mtimeUtcTicks, EntryFlags flags)
     {
         lock (_gate)

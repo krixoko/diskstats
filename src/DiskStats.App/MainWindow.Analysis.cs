@@ -130,7 +130,7 @@ public partial class MainWindow
 
             for (int i = start; i < start + store.ChildCount[node]; i++)
             {
-                if (!string.Equals(store.GetName(i), part, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!store.NameEquals(i, part)) continue;
                 found = i;
                 break;
             }

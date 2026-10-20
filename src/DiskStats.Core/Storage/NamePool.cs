@@ -44,6 +44,20 @@ public sealed class NamePool
         return offset;
     }
 
+    /// <summary>
+    /// Haengt einen Namen an, der schon als UTF-8 vorliegt, und liefert seinen Byte-Offset. Kopieren
+    /// statt Dekodieren und neu Kodieren - beim Zusammensetzen eines Baums geht jeder Name durch.
+    /// </summary>
+    public int Add(ReadOnlySpan<byte> utf8Name)
+    {
+        EnsureCapacity(_length + utf8Name.Length);
+
+        int offset = _length;
+        utf8Name.CopyTo(_buffer.AsSpan(offset));
+        _length += utf8Name.Length;
+        return offset;
+    }
+
     public ReadOnlySpan<byte> GetBytes(int offset, int length) => _buffer.AsSpan(offset, length);
 
     public string GetString(int offset, int length) => Encoding.UTF8.GetString(_buffer, offset, length);

@@ -45,6 +45,13 @@ A separate tool is available for local measurements:
 dotnet run --project src/DiskStats.Bench -c Release -- C:\DiskStats-Demo 4 --store
 ```
 
+`--synthetic` measures the in-memory operations (sort by name, path lookup, tree rebuild on
+refresh, hardlink aggregation) on a generated tree without touching the disk:
+
+```powershell
+dotnet run --project src/DiskStats.Bench -c Release -- --synthetic 1000000
+```
+
 ## Creating your own distributions
 
 ```powershell

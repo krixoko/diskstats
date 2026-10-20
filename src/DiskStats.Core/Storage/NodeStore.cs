@@ -42,6 +42,91 @@ public sealed class NodeStore
 
     public string GetName(int index) => Names.GetString(NameOffset[index], NameLength[index]);
 
+    /// <summary>
+    /// Der Name als UTF-8, ohne String. <see cref="GetName"/> legt bei jedem Aufruf ein neues Objekt
+    /// an; in Schleifen ueber Zehntausende Knoten (Sortieren, Suchen, Zusammensetzen) ist das der
+    /// Unterschied zwischen einem Durchlauf und einem Durchlauf plus hunderten Megabyte Abfall.
+    /// </summary>
+    public ReadOnlySpan<byte> NameBytes(int index) => Names.GetBytes(NameOffset[index], NameLength[index]);
+
+    /// <summary>
+    /// Ob der Name gleich <paramref name="text"/> ist, ohne Beachtung der Gross-/Kleinschreibung -
+    /// dasselbe Ergebnis wie <c>GetName(index).Equals(text, OrdinalIgnoreCase)</c>, aber ohne
+    /// Zeichenkette. Reines ASCII wird direkt verglichen.
+    ///
+    /// Ein ASCII-Name gleicht unter OrdinalIgnoreCase keinem Text mit anderen Zeichen und umgekehrt:
+    /// .NET bildet weder das Kelvin-Zeichen noch das punktlose i noch das lange s auf ASCII-Buchstaben
+    /// ab (die Tests pruefen das). Nur wenn beide Seiten nicht-ASCII enthalten, entscheidet der genaue Weg.
+    /// </summary>
+    public bool NameEquals(int index, ReadOnlySpan<char> text)
+    {
+        ReadOnlySpan<byte> name = NameBytes(index);
+        bool nameIsAscii = System.Text.Ascii.IsValid(name);
+        bool textIsAscii = System.Text.Ascii.IsValid(text);
+
+        if (nameIsAscii && textIsAscii) return System.Text.Ascii.EqualsIgnoreCase(name, text);
+        if (nameIsAscii != textIsAscii) return false;
+
+        // Beide mit Umlauten o. Ae.: genauer Vergleich, aber im Stapel statt als neuer String.
+        if (name.Length <= ScratchChars)
+        {
+            Span<char> scratch = stackalloc char[ScratchChars];
+            int length = System.Text.Encoding.UTF8.GetChars(name, scratch);
+            return scratch[..length].Equals(text, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return GetName(index).AsSpan().Equals(text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Platz fuer einen dekodierten Namen im Stapel. Dateinamen sind auf 255 Zeichen begrenzt (UTF-8
+    /// hoechstens 765 Byte); 512 deckt jeden ueblichen Namen, der Rest nimmt den Weg ueber einen String.
+    /// </summary>
+    private const int ScratchChars = 512;
+
+    /// <summary>
+    /// Ordnet zwei Namen wie <c>string.Compare(.., OrdinalIgnoreCase)</c>, ohne Zeichenketten anzulegen.
+    /// Eine Namens-Sortierung ruft das n log n mal auf - bei zwei Millionen Knoten ueber vierzig Millionen
+    /// Mal, jedes Mal mit zwei neuen Strings, wenn man <see cref="GetName"/> benutzt.
+    ///
+    /// Solange beide Namen in ASCII uebereinstimmen oder sich dort unterscheiden, entscheiden die Bytes.
+    /// Sobald an der entscheidenden Stelle etwas anderes steht, gilt der genaue Vergleich - die Ordnung
+    /// ist damit fuer jedes Paar dieselbe wie bei Zeichenketten.
+    /// </summary>
+    public int CompareNames(int a, int b)
+    {
+        ReadOnlySpan<byte> x = NameBytes(a), y = NameBytes(b);
+        int shared = Math.Min(x.Length, y.Length);
+
+        for (int i = 0; i < shared; i++)
+        {
+            byte p = x[i], q = y[i];
+            if (p == q) continue;
+            if (p >= 0x80 || q >= 0x80) return CompareExactly(x, y);
+
+            int up = Upper(p), uq = Upper(q);
+            if (up != uq) return up < uq ? -1 : 1;
+        }
+
+        return x.Length.CompareTo(y.Length);
+
+        static int Upper(byte value) => value is >= (byte)'a' and <= (byte)'z' ? value - 32 : value;
+    }
+
+    /// <summary>Der genaue Vergleich zweier UTF-8-Namen, ohne Strings auf dem Heap.</summary>
+    private int CompareExactly(ReadOnlySpan<byte> x, ReadOnlySpan<byte> y)
+    {
+        if (x.Length > ScratchChars || y.Length > ScratchChars)
+            return string.Compare(System.Text.Encoding.UTF8.GetString(x), System.Text.Encoding.UTF8.GetString(y),
+                StringComparison.OrdinalIgnoreCase);
+
+        Span<char> left = stackalloc char[ScratchChars];
+        Span<char> right = stackalloc char[ScratchChars];
+        int leftLength = System.Text.Encoding.UTF8.GetChars(x, left);
+        int rightLength = System.Text.Encoding.UTF8.GetChars(y, right);
+        return left[..leftLength].CompareTo(right[..rightLength], StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool IsRemoved(int index) => (Flags[index] & EntryFlags.Removed) != 0;
 
     public bool IsDirectory(int index) => (Flags[index] & EntryFlags.Directory) != 0;

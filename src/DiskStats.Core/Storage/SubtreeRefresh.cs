@@ -64,8 +64,16 @@ public static class SubtreeRefresh
         foreach (string part in relative.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
         {
             int found = -1;
+
+            // Ein ASCII-Name ist so lang wie sein UTF-8; unterscheidet sich die Laenge, kann er nicht
+            // gleich sein - ohne ein Byte des Namens anzusehen. In einem Ordner mit hunderttausend
+            // Eintraegen entscheidet das Lesen der Laenge fast alles.
+            int asciiLength = System.Text.Ascii.IsValid(part) ? part.Length : -1;
             for (int i = store.ChildStart[node]; i < store.ChildStart[node] + store.ChildCount[node]; i++)
-                if (!store.IsRemoved(i) && store.GetName(i).Equals(part, StringComparison.OrdinalIgnoreCase)) { found = i; break; }
+            {
+                if (asciiLength >= 0 && store.NameLength[i] != asciiLength) continue;
+                if (!store.IsRemoved(i) && store.NameEquals(i, part)) { found = i; break; }
+            }
             if (found < 0) return -1;
             node = found;
         }
@@ -99,15 +107,15 @@ public static class SubtreeRefresh
                     if (keepFromOriginal is not null && ReferenceEquals(source, replacement) && keepFromOriginal.TryGetValue(i, out int old))
                     {
                         bool known = old > 0 && original.IsDirectory(old);
-                        buffer.AddDirectory(folder.Id, id, source.GetName(i), known ? original.MTime[old] : source.MTime[i],
+                        buffer.AddDirectoryUtf8(folder.Id, id, source.NameBytes(i), known ? original.MTime[old] : source.MTime[i],
                             source.Flags[i] | EntryFlags.Unreadable);
                         queue.Enqueue(known ? (original, old, id) : (source, i, id));
                         continue;
                     }
-                    buffer.AddDirectory(folder.Id, id, source.GetName(i), replace ? replacement!.MTime[0] : source.MTime[i], source.Flags[i]);
+                    buffer.AddDirectoryUtf8(folder.Id, id, source.NameBytes(i), replace ? replacement!.MTime[0] : source.MTime[i], source.Flags[i]);
                     queue.Enqueue(replace ? (replacement!, 0, id) : (source, i, id));
                 }
-                else buffer.AddFile(folder.Id, source.GetName(i), source.Size[i], source.MTime[i], source.Flags[i],
+                else buffer.AddFileUtf8(folder.Id, source.NameBytes(i), source.Size[i], source.MTime[i], source.Flags[i],
                     new FileStorageInfo(source.AllocationOf(i), source.IdentityOf(i), source.LinksOf(i)));
             }
         }

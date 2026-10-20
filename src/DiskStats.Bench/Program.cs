@@ -6,8 +6,12 @@ using DiskStats.Core.Storage;
 if (args.Length < 1)
 {
     Console.Error.WriteLine("Aufruf: DiskStats.Bench <pfad> [workerzahl] [--store]");
+    Console.Error.WriteLine("        DiskStats.Bench --synthetic [eintraege]   (Speicheroperationen ohne Platte)");
     return 1;
 }
+
+if (args[0] == "--synthetic")
+    return DiskStats.Bench.SyntheticBenchmark.Run(args.Length > 1 && int.TryParse(args[1], out int n) ? n : 1_000_000);
 
 string root = args[0];
 bool withStore = args.Contains("--store");

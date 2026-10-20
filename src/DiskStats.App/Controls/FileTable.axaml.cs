@@ -148,7 +148,7 @@ public partial class FileTable : UserControl
 
         Comparison<int> compare = sort switch
         {
-            FileSort.Name => (a, b) => string.Compare(store.GetName(a), store.GetName(b), StringComparison.OrdinalIgnoreCase),
+            FileSort.Name => store.CompareNames,
             FileSort.Physical => (a, b) => Physical(store, a).CompareTo(Physical(store, b)),
             FileSort.Modified => (a, b) => store.MTime[a].CompareTo(store.MTime[b]),
             FileSort.Files => (a, b) => files[a].CompareTo(files[b]),

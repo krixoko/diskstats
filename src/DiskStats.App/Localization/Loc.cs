@@ -340,6 +340,10 @@ public static class Loc
                               "Papierkorb: {0} bei {1} Einträgen"),
         ["Clean_ErrorCode"] = ("Error code {0}", "Fehlercode {0}"),
         ["Clean_LongPath"] = ("At least one path is longer than 260 characters, which the Windows Recycle Bin may not handle.", "Mindestens ein Pfad ist länger als 260 Zeichen — das kann der Windows-Papierkorb unter Umständen nicht verarbeiten."),
+        ["Clean_Linked"] = ("Nothing was moved: {0} is (or lies behind) a link that was not there during the scan.", "Nichts verschoben: {0} ist oder liegt hinter einer Verknüpfung, die beim Scan nicht da war."),
+        ["Clean_KindChanged"] = ("Nothing was moved: {0} is no longer the same kind of entry as during the scan.", "Nichts verschoben: {0} ist nicht mehr dieselbe Art Eintrag wie beim Scan."),
+        ["Clean_ChangedAsk"] = ("{0} of the entries changed since the scan (e.g. {1}). Move them to the Recycle Bin as they are now?", "{0} der Einträge haben sich seit dem Scan geändert (z. B. {1}). So, wie sie jetzt sind, in den Papierkorb verschieben?"),
+        ["Clean_ChangedAbort"] = ("Nothing was moved: entries had changed since the scan.", "Nichts verschoben: Einträge hatten sich seit dem Scan geändert."),
 
         // ---------- Ablehnungen ----------
         ["Deny_NoPath"] = ("No path", "Kein Pfad"),

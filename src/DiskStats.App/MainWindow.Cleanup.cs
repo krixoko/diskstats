@@ -131,6 +131,31 @@ public partial class MainWindow
                 return;
             }
 
+            // Dritte Pruefung, unmittelbar vor der Shell: Zeigt die Platte noch, was bestaetigt wurde?
+            // Der Pfadtext bleibt gleich, auch wenn ein Ordner inzwischen durch eine Verknuepfung
+            // ersetzt wurde — und als Administrator wuerde dann dort geloescht, wohin sie fuehrt.
+            IReadOnlyList<Drift> drift = await Task.Run(() => Revalidation.Check(store.RootPath, items));
+            if (drift.FirstOrDefault(d => d.Kind != DriftKind.Changed) is { } blocked)
+            {
+                StatusText.Text = Loc.T(blocked.Kind == DriftKind.Linked ? "Clean_Linked" : "Clean_KindChanged", blocked.Path);
+                return;
+            }
+
+            if (drift.Count > 0)
+            {
+                string examples = string.Join(", ", drift.Take(3).Select(d => Path.GetFileName(d.Path)))
+                    + (drift.Count > 3 ? " …" : string.Empty);
+                string again = Loc.T("Clean_ChangedAsk", drift.Count, examples);
+                bool go = confirm is not null ? await confirm(again)
+                    : (await Confirm.Ask(this, Loc.T("Clean_Delete"), again, Loc.T("Clean_Move"),
+                        null, focusConfirm: false, paths: drift.Select(d => d.Path).ToArray())).Yes;
+                if (!go)
+                {
+                    StatusText.Text = Loc.T("Clean_ChangedAbort");
+                    return;
+                }
+            }
+
             RecycleBin.Result result;
             try
             {

@@ -242,6 +242,78 @@ public sealed class OperationTests : IDisposable
         Assert.Equal(Other, window.Store!.RootPath);
     }
 
+    [AvaloniaFact]
+    public async Task Unveraenderte_eintraege_brauchen_nur_eine_rueckfrage()
+    {
+        MainWindow window = await Scan();
+        window.Stage(Node(window, "a.txt"));
+        var questions = new List<string>();
+
+        await window.RunCleanup(q => { questions.Add(q); return Task.FromResult(true); },
+            _ => Task.FromResult(new RecycleBin.Result(true, false, 0)));
+
+        Assert.Single(questions);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Seit_dem_scan_geaenderte_datei_loest_eine_zweite_rueckfrage_aus(bool accept)
+    {
+        MainWindow window = await Scan();
+        window.Stage(Node(window, "a.txt"));
+        File.WriteAllBytes(Path.Combine(Tree, "a.txt"), new byte[777]); // nach dem Scan veraendert
+        var questions = new List<string>();
+        string[]? sent = null;
+
+        await window.RunCleanup(
+            q => { questions.Add(q); return Task.FromResult(questions.Count == 1 || accept); },
+            paths => { sent = paths.ToArray(); return Task.FromResult(new RecycleBin.Result(true, false, 0)); });
+
+        Assert.Equal(2, questions.Count);
+        Assert.Contains("changed since the scan", questions[1]);
+        Assert.Contains("a.txt", questions[1]);
+        if (accept) Assert.Equal(new[] { Path.Combine(Tree, "a.txt") }, sent);
+        else
+        {
+            Assert.Null(sent);
+            Assert.Contains("Nothing was moved", Control<TextBlock>(window, "StatusText").Text);
+            Assert.Equal(1, window.StagedCount);
+        }
+        Assert.True(Control<Button>(window, "CleanupRun").IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public async Task Ordner_der_nach_dem_scan_zur_verknuepfung_wurde_stoppt_das_loeschen_hart()
+    {
+        string folder = Path.Combine(Tree, "folder");
+        Directory.CreateDirectory(folder);
+        File.WriteAllBytes(Path.Combine(folder, "inner.bin"), new byte[50]);
+        MainWindow window = await Scan();
+        window.Stage(Node(window, "inner.bin"));
+
+        // Der Pfadtext bleibt gleich, doch "folder" fuehrt jetzt woanders hin.
+        string elsewhere = Path.Combine(Other, "moved");
+        Directory.Move(folder, elsewhere);
+        try { Directory.CreateSymbolicLink(folder, elsewhere); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            Assert.Skip("Verknuepfungen anlegen braucht Rechte");
+        }
+        var questions = new List<string>();
+        bool sent = false;
+
+        await window.RunCleanup(q => { questions.Add(q); return Task.FromResult(true); },
+            _ => { sent = true; return Task.FromResult(new RecycleBin.Result(true, false, 0)); });
+
+        Assert.False(sent, "durch eine Verknuepfung darf nichts in den Papierkorb gehen");
+        Assert.Single(questions); // kein zweites "trotzdem?" bei einem harten Stopp
+        Assert.Contains("link", Control<TextBlock>(window, "StatusText").Text);
+        Assert.True(File.Exists(Path.Combine(elsewhere, "inner.bin")));
+        Assert.Equal(1, window.StagedCount);
+        Assert.True(Control<Button>(window, "CleanupRun").IsEnabled);
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

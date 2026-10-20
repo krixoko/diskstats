@@ -15,7 +15,13 @@ namespace DiskStats.Core.Cleanup;
 /// </summary>
 public sealed class CleanupList
 {
-    public readonly record struct Item(string Path, string Name, long Size, bool IsDirectory);
+    /// <param name="MTimeTicks">
+    /// Aenderungszeit beim Scan (UTC-Ticks, 0 = unbekannt). Mit der Groesse der Massstab dafuer, ob
+    /// eine Datei noch dieselbe ist — siehe <see cref="Revalidation"/>.
+    /// </param>
+    /// <param name="WasLink">Ob der Eintrag schon beim Scan eine Verknuepfung oder ein Cloud-Platzhalter war.</param>
+    public readonly record struct Item(string Path, string Name, long Size, bool IsDirectory,
+        long MTimeTicks = 0, bool WasLink = false);
 
     private readonly List<Item> _items = [];
     private static readonly System.Buffers.SearchValues<char> InvalidNameChars
@@ -64,7 +70,8 @@ public sealed class CleanupList
                 path + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
         }
 
-        _items.Add(new Item(path, store.GetName(node), store.Size[node], store.IsDirectory(node)));
+        _items.Add(new Item(path, store.GetName(node), store.Size[node], store.IsDirectory(node),
+            store.MTime[node], (store.Flags[node] & EntryFlags.ReparsePoint) != 0));
         return null;
     }
 
@@ -104,7 +111,13 @@ public sealed class CleanupList
         {
             int node = SubtreeRefresh.Find(store, _items[item].Path);
             if (node <= 0 || store.IsRemoved(node)) continue;
-            _items[item] = _items[item] with { Size = store.Size[node] };
+            // Neuer Stand, neuer Massstab: Was die frische Messung sieht, gilt ab jetzt als "beim Scan".
+            _items[item] = _items[item] with
+            {
+                Size = store.Size[node],
+                MTimeTicks = store.MTime[node],
+                WasLink = (store.Flags[node] & EntryFlags.ReparsePoint) != 0,
+            };
         }
     }
 

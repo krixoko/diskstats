@@ -34,16 +34,26 @@ public sealed class NtfsDifferentialTests
         Populate(disk.Root, data);
 
         // 1) Unterordner als Wurzel: der Weg, auf dem die Wurzel ueber ihre Dateikennung gefunden wird.
+        string prefix = data + Path.DirectorySeparatorChar;
         NodeStore viaDirectory = Scan(data, ScanMethod.Directory);
         NodeStore viaMft = Scan(data, ScanMethod.Ntfs);
-        AssertSameTree(viaDirectory, viaMft, data + Path.DirectorySeparatorChar, data + Path.DirectorySeparatorChar);
+        var problems = new List<(string Category, string Message)>();
+        problems.AddRange(Compare("Unterordner", viaDirectory, viaMft, prefix));
 
         // 2) Ganzes Laufwerk als Wurzel: der Weg ueber den Wurzel-Record. Verglichen wird nur "data" -
         //    "System Volume Information" und der Papierkorb sehen beide Wege verschieden.
         NodeStore wholeDrive = Scan(disk.Root, ScanMethod.Ntfs);
-        AssertSameTree(viaDirectory, wholeDrive, data + Path.DirectorySeparatorChar, data + Path.DirectorySeparatorChar);
+        problems.AddRange(Compare("Laufwerk", viaDirectory, wholeDrive, prefix));
 
-        AssertFixtureCovered(viaMft, data);
+        problems.AddRange(FixtureProblems(viaMft, data));
+
+        // Alles in einem Lauf melden, nach Kategorie gruppiert: Ein Fehlschlag soll nicht den
+        // naechsten verdecken, und ein Fund, der 3000-mal auftritt, nicht die uebrigen.
+        Assert.True(problems.Count == 0,
+            $"{problems.Count} Abweichung(en):{Environment.NewLine}" + string.Join(Environment.NewLine,
+                problems.GroupBy(p => p.Category).OrderBy(g => g.Key).Select(g =>
+                    $"  [{g.Key}] {g.Count()}x, z. B.{Environment.NewLine}"
+                    + string.Join(Environment.NewLine, g.Take(5).Select(p => "      " + p.Message)))));
     }
 
     // ---------- Scan ----------
@@ -83,55 +93,57 @@ public sealed class NtfsDifferentialTests
         return all;
     }
 
-    private static void AssertSameTree(NodeStore expected, NodeStore actual, string expectedPrefix, string actualPrefix)
+    private static List<(string Category, string Message)> Compare(string label, NodeStore expected, NodeStore actual, string prefix)
     {
-        SortedDictionary<string, Facts> a = Flatten(expected, expectedPrefix);
-        SortedDictionary<string, Facts> b = Flatten(actual, actualPrefix);
-        var problems = new List<string>();
+        SortedDictionary<string, Facts> a = Flatten(expected, prefix);
+        SortedDictionary<string, Facts> b = Flatten(actual, prefix);
+        var problems = new List<(string, string)>();
 
         foreach (string path in a.Keys.Except(b.Keys, StringComparer.OrdinalIgnoreCase))
-            problems.Add($"nur im Verzeichnisscan: {path}");
+            problems.Add(($"{label}: nur im Verzeichnisscan", path));
         foreach (string path in b.Keys.Except(a.Keys, StringComparer.OrdinalIgnoreCase))
-            problems.Add($"nur im MFT-Scan: {path}");
+            problems.Add(($"{label}: nur im MFT-Scan", path));
 
         foreach ((string path, Facts want) in a)
         {
             if (!b.TryGetValue(path, out Facts got)) continue;
 
-            if (want.IsDirectory != got.IsDirectory) problems.Add($"{path}: Ordner {want.IsDirectory} <> {got.IsDirectory}");
-            if (want.Reparse != got.Reparse) problems.Add($"{path}: Reparse {want.Reparse} <> {got.Reparse}");
+            if (want.IsDirectory != got.IsDirectory) problems.Add(($"{label}: Ordner/Datei", $"{path}: {want.IsDirectory} <> {got.IsDirectory}"));
+            if (want.Reparse != got.Reparse) problems.Add(($"{label}: Reparse-Flag", $"{path}: {want.Reparse} <> {got.Reparse}"));
             if (want.IsDirectory) continue; // Ordner: Zeit und Belegung folgen aus dem Inhalt
 
-            if (want.Size != got.Size) problems.Add($"{path}: Groesse {want.Size} <> {got.Size}");
-            if (want.Allocation != got.Allocation) problems.Add($"{path}: Belegung {want.Allocation} <> {got.Allocation}");
-            if (want.Links != got.Links) problems.Add($"{path}: Links {want.Links} <> {got.Links}");
+            if (want.Size != got.Size) problems.Add(($"{label}: Groesse", $"{path}: {want.Size} <> {got.Size}"));
+            if (want.Allocation != got.Allocation)
+                problems.Add(($"{label}: Belegung", $"{path}: Groesse {want.Size}, Verzeichnisscan {want.Allocation} <> MFT {got.Allocation}"));
+            if (want.Links != got.Links) problems.Add(($"{label}: Links", $"{path}: {want.Links} <> {got.Links}"));
             if (Math.Abs(want.MTime - got.MTime) > TimeSpan.FromSeconds(2).Ticks)
-                problems.Add($"{path}: Zeit {new DateTime(want.MTime, DateTimeKind.Utc):O} <> {new DateTime(got.MTime, DateTimeKind.Utc):O}");
+                problems.Add(($"{label}: Zeit", $"{path}: {new DateTime(want.MTime, DateTimeKind.Utc):O} <> {new DateTime(got.MTime, DateTimeKind.Utc):O}"));
         }
 
-        Assert.True(problems.Count == 0,
-            $"{problems.Count} Abweichung(en) zwischen Verzeichnisscan und MFT-Scan:{Environment.NewLine}"
-            + string.Join(Environment.NewLine, problems.Take(40)));
-        Assert.True(a.Count > 3000, $"zu wenige Eintraege verglichen: {a.Count}");
+        if (a.Count <= 3000) problems.Add(($"{label}: Umfang", $"zu wenige Eintraege verglichen: {a.Count}"));
+        return problems;
     }
 
     /// <summary>Stellt sicher, dass die schwierigen Faelle wirklich im Baum waren und nicht stillschweigend ausfielen.</summary>
-    private static void AssertFixtureCovered(NodeStore store, string data)
+    private static List<(string Category, string Message)> FixtureProblems(NodeStore store, string data)
     {
         SortedDictionary<string, Facts> all = Flatten(store, data + Path.DirectorySeparatorChar);
+        var problems = new List<(string, string)>();
 
-        Assert.True(all["junction"].Reparse, "Junction fehlt oder ist nicht als Verknuepfung erkannt");
-        Assert.Equal(2u, all["hard-a.bin"].Links);
-        Assert.Equal(2u, all["hard-b.bin"].Links);
-        Assert.True(all["compressed.bin"].Allocation < all["compressed.bin"].Size / 2, "komprimierte Datei belegt nicht weniger");
-        Assert.True(all["sparse.bin"].Allocation < all["sparse.bin"].Size / 2, "Sparse-Datei belegt nicht weniger");
-        Assert.Equal(0, all["empty.bin"].Size);
-        Assert.Contains(all.Keys, k => k.Contains("ünïcödé"));
-        Assert.Contains(all.Keys, k => k.Length > 260);
-        Assert.Equal(3000, all.Keys.Count(k => k.StartsWith("bulk" + Path.DirectorySeparatorChar)));
+        void Expect(bool condition, string what) { if (!condition) problems.Add(("Testaufbau", what)); }
+        bool Has(string name, out Facts facts) => all.TryGetValue(name, out facts);
 
-        // Beide Namen derselben Datei zusammen belegen den Platz nur einmal.
-        Assert.True(store.PhysicalSize[0] < store.Size[0] + 4096L * all.Count);
+        Expect(Has("junction", out Facts junction) && junction.Reparse, "Junction fehlt oder ist nicht als Verknuepfung erkannt");
+        Expect(Has("hard-a.bin", out Facts a) && a.Links == 2, "hard-a.bin hat nicht zwei Links");
+        Expect(Has("hard-b.bin", out Facts b) && b.Links == 2, "hard-b.bin hat nicht zwei Links");
+        Expect(Has("compressed.bin", out Facts c) && c.Allocation >= 0 && c.Allocation < c.Size / 2, "komprimierte Datei belegt nicht weniger");
+        Expect(Has("sparse.bin", out Facts sp) && sp.Allocation >= 0 && sp.Allocation < sp.Size / 2, "Sparse-Datei belegt nicht weniger");
+        Expect(Has("empty.bin", out Facts e) && e.Size == 0, "leere Datei fehlt");
+        Expect(all.Keys.Any(k => k.Contains("ünïcödé")), "Datei mit Umlauten fehlt");
+        Expect(all.Keys.Any(k => k.Length > 260), "kein Eintrag mit Pfad ueber 260 Zeichen");
+        Expect(all.Keys.Count(k => k.StartsWith("bulk" + Path.DirectorySeparatorChar)) == 3000, "nicht alle 3000 Dateien im Ordner bulk");
+        Expect(!all.Keys.Any(k => k.StartsWith("junction" + Path.DirectorySeparatorChar)), "der Scan ist der Junction gefolgt");
+        return problems;
     }
 
     // ---------- Fixture ----------

@@ -2,7 +2,7 @@ name: Build and test
 
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main, 'codex/**', 'claude/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -59,3 +59,24 @@ jobs:
             echo "::error::Vulnerable NuGet packages found (see the report above)."
             exit 1
           fi
+
+  # Compares the MFT scan with the directory scan on a real NTFS volume (a virtual disk with
+  # hardlinks, compressed and sparse files, a junction, a data stream, a long path, 3000 files).
+  # Synthetic records test the parser; only this job tests that the result matches what Windows
+  # reports. Windows runners are administrators, which the test needs to attach the disk.
+  ntfs-differential:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore tests/DiskStats.Core.Tests
+      - name: Build
+        run: dotnet build tests/DiskStats.Core.Tests -c Release --no-restore
+      - name: MFT scan vs. directory scan
+        env:
+          DISKSTATS_VHD_TESTS: '1'
+        run: dotnet test tests/DiskStats.Core.Tests -c Release --no-build --filter "FullyQualifiedName~NtfsDifferentialTests" --logger "console;verbosity=detailed"

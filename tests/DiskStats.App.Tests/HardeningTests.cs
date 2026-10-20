@@ -196,11 +196,15 @@ public sealed class HardeningWindowTests : IDisposable
         AppSettings.Current.ElevationPrompt = false;
         AppSettings.Current.AutoElevate = false;
         AppSettings.Current.LastPath = string.Empty;
+        AppSettings.Current.SaveHistory = true;
+        AppSettings.Current.HistoryMonths = 12;
         Loc.Current = Language.English;
     }
 
     public void Dispose()
     {
+        AppSettings.Current.SaveHistory = true;
+        AppSettings.Current.HistoryMonths = 12;
         foreach (MainWindow window in _windows) window.Close();
         AppSettings.Folder = _settings;
         SnapshotStore.Folder = _snapshots;
@@ -236,6 +240,71 @@ public sealed class HardeningWindowTests : IDisposable
         Loc.Current = Language.German;
         Assert.Contains("Systemordner Windows", MainWindow.Say(protectedPath));
         Assert.Contains("Cloud", MainWindow.Say(linked));
+    }
+
+    [Fact]
+    public void Der_verlauf_ist_standardmaessig_an_mit_zwoelf_monaten()
+    {
+        var defaults = new AppSettings();
+
+        Assert.True(defaults.SaveHistory);
+        Assert.Equal(12, defaults.HistoryMonths);
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 3)]
+    [InlineData(7, 12)]
+    [InlineData(12, 12)]
+    [InlineData(500, 12)]
+    [InlineData(0, 1)]
+    [InlineData(-3, 1)]
+    public void Ein_handbearbeiteter_wert_trifft_eine_vorhandene_auswahl(int stored, int expected)
+        => Assert.Equal(expected, SettingsWindow.NearestChoice(stored));
+
+    [AvaloniaFact]
+    public void Der_schalter_speichert_die_wahl_und_blendet_die_aufbewahrung_aus()
+    {
+        var window = new SettingsWindow();
+        window.Show();
+        try
+        {
+            var toggle = window.FindControl<ToggleSwitch>("HistorySwitch")!;
+            var months = window.FindControl<StackPanel>("HistoryMonthsRow")!;
+            Assert.True(toggle.IsChecked);
+            Assert.True(months.IsVisible);
+
+            toggle.IsChecked = false;
+
+            Assert.False(AppSettings.Current.SaveHistory);
+            Assert.False(months.IsVisible);
+
+            toggle.IsChecked = true;
+
+            Assert.True(AppSettings.Current.SaveHistory);
+            Assert.True(months.IsVisible);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Die_aufbewahrung_zeigt_die_gespeicherte_wahl_und_speichert_eine_neue()
+    {
+        AppSettings.Current.HistoryMonths = 6;
+        var window = new SettingsWindow();
+        window.Show();
+        try
+        {
+            var buttons = window.FindControl<StackPanel>("HistoryMonthsGroup")!.Children.OfType<Button>().ToArray();
+            Assert.Equal(SettingsWindow.HistoryChoices.Length, buttons.Length);
+            Assert.Equal([6], buttons.Where(b => b.Classes.Contains("active")).Select(b => (int)b.Tag!));
+
+            buttons.Single(b => (int)b.Tag! == 3).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+
+            Assert.Equal(3, AppSettings.Current.HistoryMonths);
+            Assert.Equal([3], buttons.Where(b => b.Classes.Contains("active")).Select(b => (int)b.Tag!));
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaFact]

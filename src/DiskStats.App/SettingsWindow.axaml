@@ -24,6 +24,21 @@
                     <Button Grid.Column="1" Classes="quiet" x:Name="CacheClear"
                             Content="{loc:T Cache_Clear}" Padding="12,6" />
                 </Grid>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,12,0">
+                        <TextBlock Text="{loc:T Hist_Keep}" FontSize="12.5" />
+                        <TextBlock Classes="label" FontSize="11" TextWrapping="Wrap"
+                                   Text="{loc:T Hist_KeepHint}" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" x:Name="HistorySwitch" OnContent="" OffContent=""
+                                  VerticalAlignment="Center" />
+                </Grid>
+
+                <StackPanel x:Name="HistoryMonthsRow" Spacing="7">
+                    <TextBlock Text="{loc:T Hist_Months}" FontSize="12.5" />
+                    <StackPanel x:Name="HistoryMonthsGroup" Orientation="Horizontal" Spacing="2" />
+                </StackPanel>
             </StackPanel>
         </Border>
 

@@ -54,7 +54,7 @@ class Program
         // Aufraeumen beim Start statt im Hintergrund: einmal je Sitzung genuegt, und
         // ein Werkzeug, das Platz zeigen soll, darf selbst keinen verschwenden.
         DiagnosticLog.Prune(DateTime.Now);
-        SnapshotStore.Prune(DateTime.Now);
+        SnapshotStore.Prune(DateTime.Now, AppSettings.Current.HistoryMonths);
 
         try { BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         finally { SingleInstance.Release(); }

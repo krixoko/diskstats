@@ -83,10 +83,14 @@ public partial class MainWindow
     /// aus der Ablage unter einer Sekunde. Was dort steht, ist ein Stand — kein Live-Bild;
     /// deshalb sagt die Statusleiste, von wann er ist.
     /// </summary>
+    internal void RestoreLastScanForTest() => RestoreLastScan();
+
     private void RestoreLastScan()
     {
+        // Ohne Verlauf startet die Anwendung leer: ein alter Stand waere veraltet und widerspraeche
+        // dem, was der Benutzer abgeschaltet hat.
         string last = AppSettings.Current.LastPath;
-        if (last.Length == 0) return;
+        if (last.Length == 0 || !AppSettings.Current.SaveHistory) return;
 
         NodeStore? store = SnapshotStore.TryLoad(last, out DateTime written);
         if (store is null) return;
@@ -341,7 +345,8 @@ public partial class MainWindow
         // Im Hintergrund ablegen: dreissig Megabyte zu schreiben darf die Oberflaeche
         // nicht anhalten, und ob es klappt, aendert am gezeigten Ergebnis nichts.
         NodeStore finished = update.Store;
-        _snapshotWork = _snapshots.Enqueue(() => SaveAndCompare(finished));
+        if (AppSettings.Current.SaveHistory)
+            _snapshotWork = _snapshots.Enqueue(() => SaveAndCompare(finished));
     }
 
     // ---------- Erhoehte Rechte ----------

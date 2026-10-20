@@ -91,7 +91,7 @@ public partial class MainWindow
     /// kein Vergleich. Der Scan selbst sichert immer. Siehe <see cref="SnapshotStore.RefreshInterval"/>.
     /// </summary>
     private Task SaveAfterRefresh(NodeStore finished)
-        => SnapshotStore.IsDueAfterRefresh(finished.RootPath, DateTime.Now)
+        => AppSettings.Current.SaveHistory && SnapshotStore.IsDueAfterRefresh(finished.RootPath, DateTime.Now)
             ? SaveAndCompare(finished)
             : Task.CompletedTask;
 

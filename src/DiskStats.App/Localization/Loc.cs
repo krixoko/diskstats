@@ -409,6 +409,12 @@ public static class Loc
         ["Cache_Clear"] = ("Delete", "Löschen"),
         ["Cache_Cleared"] = ("{0} freed", "{0} frei geworden"),
         ["Cache_Empty"] = ("Nothing stored", "Nichts gespeichert"),
+        ["Hist_Keep"] = ("Keep scan history", "Scan-Verlauf speichern"),
+        ["Hist_KeepHint"] = (
+            "Each scan stores the names of its files and folders on this PC, so the next start is instant and changes can be shown. Turn off to store nothing — the app then starts empty and cannot show changes. Existing data stays until you delete it.",
+            "Jeder Scan legt die Namen seiner Dateien und Ordner auf diesem PC ab, damit der nächste Start sofort da ist und Änderungen sichtbar werden. Ausgeschaltet wird nichts gespeichert — die App startet dann leer und kann keine Änderungen zeigen. Vorhandene Daten bleiben, bis du sie löschst."),
+        ["Hist_Months"] = ("Keep for", "Aufbewahren für"),
+        ["Hist_MonthsN"] = ("{0} mo.", "{0} Mon."),
 
         // ---------- Erhoehte Rechte ----------
         ["Elev_Title"] = ("Run as administrator?", "Mit Administratorrechten starten?"),

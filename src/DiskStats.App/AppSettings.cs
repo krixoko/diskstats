@@ -49,6 +49,17 @@ public sealed class AppSettings
 
     public SizeBase Sizes { get; set; } = SizeBase.Binary;
 
+    /// <summary>
+    /// Ob jeder Scan als Snapshot abgelegt wird. Darin stehen alle Datei- und Ordnernamen des
+    /// Scans, im Klartext im Benutzerprofil — Dateinamen koennen sensibel sein (Vertraege,
+    /// Rechnungen). Wer das nicht will, schaltet es ab; die Anwendung startet dann leer und
+    /// kann keine Veraenderungen seit dem letzten Mal zeigen.
+    /// </summary>
+    public bool SaveHistory { get; set; } = true;
+
+    /// <summary>Wie lange Staende aufbewahrt werden. Siehe <see cref="DiskStats.Core.Storage.SnapshotStore.NormalizeRetention"/>.</summary>
+    public int HistoryMonths { get; set; } = DiskStats.Core.Storage.SnapshotStore.RetentionMonths;
+
     /// <summary>Zuletzt gescannter Pfad — als Vorschlag beim naechsten Start.</summary>
     public string LastPath { get; set; } = string.Empty;
 

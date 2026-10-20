@@ -75,7 +75,10 @@ public static class SnapshotStore
 
     public static bool Save(NodeStore store) => Save(store, DateTime.Now);
 
-    public static bool Save(NodeStore store, DateTime moment)
+    /// <summary>Was als Aufbewahrung gilt, wenn jemand Unsinn einstellt (0, negativ, hunderte Jahre).</summary>
+    public static int NormalizeRetention(int months) => Math.Clamp(months, 1, 60);
+
+    public static bool Save(NodeStore store, DateTime moment, int retentionMonths = RetentionMonths)
     {
         try
         {
@@ -89,7 +92,7 @@ public static class SnapshotStore
             using (var file = File.Create(temporary)) SnapshotFormat.Write(store, file);
             File.Move(temporary, target, overwrite: true);
 
-            Prune(moment);
+            Prune(moment, retentionMonths);
             return true;
         }
         catch (IOException) { return false; }
@@ -184,10 +187,10 @@ public static class SnapshotStore
     /// Raeumt auf. Gibt die Zahl der geloeschten Dateien zurueck, damit sich das Verhalten
     /// pruefen laesst.
     /// </summary>
-    public static int Prune(DateTime now)
+    public static int Prune(DateTime now, int retentionMonths = RetentionMonths)
     {
         IReadOnlyList<Entry> entries = List();
-        DateTime cutoff = now.AddMonths(-RetentionMonths);
+        DateTime cutoff = now.AddMonths(-NormalizeRetention(retentionMonths));
 
         var doomed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using DiskStats.Core.Scanning;
+using DiskStats.Core.Storage;
 using Avalonia.Controls.Primitives;
 
 using DiskStats.App.Localization;
@@ -55,6 +56,29 @@ public partial class SettingsWindow : Window
             CacheClear.IsEnabled = false;
         };
 
+        HistorySwitch.IsChecked = AppSettings.Current.SaveHistory;
+        HistoryMonthsRow.IsVisible = AppSettings.Current.SaveHistory;
+        HistorySwitch.IsCheckedChanged += (_, _) =>
+        {
+            bool keep = HistorySwitch.IsChecked == true;
+            HistoryMonthsRow.IsVisible = keep;
+            AppSettings.Apply(s => s.SaveHistory = keep);
+        };
+
+        BuildSegments(HistoryMonthsGroup,
+            [.. HistoryChoices.Select(m => (m, Loc.T("Hist_MonthsN", m)))],
+            NearestChoice(AppSettings.Current.HistoryMonths),
+            value =>
+            {
+                int months = (int)value;
+                AppSettings.Apply(s => s.HistoryMonths = months);
+
+                // Eine kuerzere Frist wirkt sofort, nicht erst beim naechsten Start - wer sie
+                // verkuerzt, will genau das loswerden.
+                SnapshotStore.Prune(DateTime.Now, months);
+                UpdateCacheHint();
+            });
+
         // Nur zeigen, wo die Frage ueberhaupt gestellt werden kann — ein Schalter fuer etwas,
         // das im eigenen Konto nie vorkommt, ist eine Einstellung ohne Wirkung.
         ElevationCard.IsVisible = Elevation.CanOffer;
@@ -106,6 +130,16 @@ public partial class SettingsWindow : Window
         CloseButton.Click += (_, _) => Close();
         UpdateSizeHint();
     }
+
+    /// <summary>Die waehlbaren Aufbewahrungsfristen in Monaten.</summary>
+    internal static readonly int[] HistoryChoices = [1, 3, 6, 12];
+
+    /// <summary>
+    /// Die naechste waehlbare Frist, die mindestens so lang ist. Ein Wert aus einer handbearbeiteten
+    /// Einstellungsdatei (7 Monate) soll eine Auswahl treffen, keine leere Leiste zeigen.
+    /// </summary>
+    internal static int NearestChoice(int months)
+        => HistoryChoices.FirstOrDefault(c => c >= months, HistoryChoices[^1]);
 
     private void UpdateWorkerValue() => WorkerValue.Text = ((int)WorkerSlider.Value).ToString();
 

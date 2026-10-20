@@ -33,11 +33,15 @@ public sealed class OperationTests : IDisposable
         AppSettings.Current.ElevationPrompt = false;
         AppSettings.Current.AutoElevate = false;
         AppSettings.Current.LastPath = string.Empty;
+        AppSettings.Current.SaveHistory = true;
+        AppSettings.Current.HistoryMonths = 12;
         Loc.Current = Language.English;
     }
 
     public void Dispose()
     {
+        AppSettings.Current.SaveHistory = true;
+        AppSettings.Current.HistoryMonths = 12;
         foreach (MainWindow window in _windows) window.Close();
         AppSettings.Folder = _settings;
         SnapshotStore.Folder = _snapshots;
@@ -519,6 +523,58 @@ public sealed class OperationTests : IDisposable
         Assert.Equal(800, window.Store!.Size[0]);
         Assert.Equal(folder, Control<TextBlock>(window, "InspectorPath").Text);
         Assert.True(Control<Button>(window, "UpButton").IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Ohne_verlauf_wird_nach_dem_scan_nichts_gespeichert()
+    {
+        AppSettings.Current.SaveHistory = false;
+
+        MainWindow window = await Scan();
+
+        Assert.Empty(SnapshotStore.History(Tree));
+        Assert.False(Directory.Exists(SnapshotStore.Folder) && Directory.EnumerateFiles(SnapshotStore.Folder).Any());
+        Assert.Equal(300, window.Store!.Size[0]); // der Scan selbst funktioniert wie immer
+    }
+
+    [AvaloniaFact]
+    public async Task Ohne_verlauf_sichert_auch_ein_faelliger_refresh_nichts()
+    {
+        MainWindow window = await Scan();
+        SnapshotStore.Entry only = Assert.Single(SnapshotStore.History(Tree));
+        File.Move(only.Path, SnapshotStore.FileFor(Tree, DateTime.Now - SnapshotStore.RefreshInterval - TimeSpan.FromMinutes(5)));
+        AppSettings.Current.SaveHistory = false;
+
+        await window.RefreshFolderAsync(0);
+        await SnapshotWork(window);
+
+        Assert.Single(SnapshotStore.History(Tree)); // nur der alte Stand, kein neuer
+    }
+
+    [AvaloniaFact]
+    public async Task Ohne_verlauf_startet_die_anwendung_leer_statt_mit_einem_alten_stand()
+    {
+        await Scan(); // legt einen Stand ab und merkt sich den Pfad
+        AppSettings.Current.LastPath = Tree;
+        AppSettings.Current.SaveHistory = false;
+        MainWindow fresh = NewWindow();
+
+        fresh.RestoreLastScanForTest();
+
+        Assert.Null(fresh.Store);
+    }
+
+    [AvaloniaFact]
+    public async Task Mit_verlauf_holt_der_start_den_letzten_stand_zurueck()
+    {
+        await Scan();
+        AppSettings.Current.LastPath = Tree;
+        MainWindow fresh = NewWindow();
+
+        fresh.RestoreLastScanForTest();
+
+        Assert.NotNull(fresh.Store);
+        Assert.Equal(Tree, fresh.Store!.RootPath);
     }
 
     [AvaloniaFact]

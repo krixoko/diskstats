@@ -155,6 +155,48 @@ public class SnapshotStoreTests : IDisposable
         Assert.True(SnapshotStore.IsDueAfterRefresh(tree.Root, now));
     }
 
+    [Theory]
+    [InlineData(-4, 1)]
+    [InlineData(0, 1)]
+    [InlineData(6, 6)]
+    [InlineData(12, 12)]
+    [InlineData(100_000, 60)]
+    public void Unsinnige_aufbewahrung_wird_auf_einen_sinnvollen_bereich_begrenzt(int months, int expected)
+        => Assert.Equal(expected, SnapshotStore.NormalizeRetention(months));
+
+    [Fact]
+    public void Eine_kuerzere_aufbewahrung_verwirft_aeltere_staende_sofort()
+    {
+        using var tree = new TestTree();
+        var now = new DateTime(2026, 9, 15);
+        Given(tree.Root, now.AddMonths(-1));
+        Given(tree.Root, now.AddMonths(-4));
+        Given(tree.Root, now.AddMonths(-8));
+
+        // Mit den Standard-zwoelf-Monaten bleibt alles ...
+        Assert.Equal(0, SnapshotStore.Prune(now));
+        Assert.Equal(3, SnapshotStore.History(tree.Root).Count);
+
+        // ... mit drei Monaten fallen die beiden aelteren.
+        Assert.Equal(2, SnapshotStore.Prune(now, retentionMonths: 3));
+        SnapshotStore.Entry left = Assert.Single(SnapshotStore.History(tree.Root));
+        Assert.Equal(now.AddMonths(-1), left.Written);
+    }
+
+    [Fact]
+    public void Beim_sichern_gilt_die_eingestellte_aufbewahrung()
+    {
+        using var tree = new TestTree();
+        tree.AddFile("a.bin", 10);
+        var now = new DateTime(2026, 9, 15, 12, 0, 0);
+        Given(tree.Root, now.AddMonths(-5));
+
+        Assert.True(SnapshotStore.Save(Build(tree), now, retentionMonths: 2));
+
+        SnapshotStore.Entry only = Assert.Single(SnapshotStore.History(tree.Root));
+        Assert.Equal(now, only.Written);
+    }
+
     [Fact]
     public void Legt_einen_scan_ab_und_holt_ihn_zurueck()
     {

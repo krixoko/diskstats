@@ -37,7 +37,7 @@ public partial class MainWindow
     {
         try
         {
-            if (!SnapshotStore.Save(finished))
+            if (!SnapshotStore.Save(finished, DateTime.Now, AppSettings.Current.HistoryMonths))
             {
                 DiagnosticLog.Write($"Snapshot fuer {finished.RootPath} nicht gespeichert");
                 return;

@@ -1,0 +1,21 @@
+# Editor defaults only. No analyzer severities live here: the build treats warnings as errors,
+# and changing those is a separate decision.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,slnx,axaml,xaml,xml,json,yml,yaml}]
+indent_size = 2
+
+# Trailing double spaces are a line break in Markdown.
+[*.md]
+trim_trailing_whitespace = false
+
+[*.ps1]
+indent_size = 4

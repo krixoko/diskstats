@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch makes the older run pointless. Runs on main always finish,
+# so every commit there keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -24,4 +30,32 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore
       - name: Test
-        run: dotnet test -c Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test -c Release --no-build --logger trx --collect:"XPlat Code Coverage" --results-directory TestResults
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 14
+
+  # Separate job: a newly published advisory for a dependency must be visible, but it should not
+  # turn an unrelated change red. Whether this job blocks a merge is a branch-protection choice.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore
+      - name: Check for vulnerable packages
+        run: |
+          report="$(dotnet list DiskStats.slnx package --vulnerable --include-transitive 2>&1)"
+          echo "$report"
+          if echo "$report" | grep -q "has the following vulnerable packages"; then
+            echo "::error::Vulnerable NuGet packages found (see the report above)."
+            exit 1
+          fi

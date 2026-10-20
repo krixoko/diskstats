@@ -19,6 +19,22 @@ In a pull request, describe the problem, your changes, and the checks you ran.
 Add appropriate tests for behavior changes. English and German UI strings are
 stored in `src/DiskStats.App/Localization/Loc.cs`.
 
+## Conventions
+
+- **Comments:** write new and changed comments in English. Much of the existing code is
+  commented in German; translate a block when you touch it, but do not rewrite files just for
+  that.
+- **User-facing text** always goes through `Localization/Loc.cs` with both languages. Core code
+  reports *facts* (`Refusal`, `FileMoveException`) and the UI turns them into text. Never show
+  `ex.Message` of one of our own exceptions or an enum name to the user.
+- **Win32 calls** that more than one place needs live in `Core/Interop/NativeMethods.cs`;
+  `SHFileOperation` exists only in `Core/Interop/ShellFileOperation.cs`. Do not add another copy
+  of a declaration.
+- **What may run at the same time** is decided in `App/OperationGate.cs`, not by new bool fields
+  in `MainWindow`. Add a case to its tests when you add an operation.
+- **Snapshots:** a file from a newer app version must never be deleted by an older one; only a
+  file that is actually damaged may be discarded (see `SnapshotVersionException`).
+
 Test scanning and deletion with purpose-made sample data. Some Windows features
 depend on the file system and permissions; document which code paths you
 actually verified.
@@ -55,4 +71,11 @@ Git. Store screenshots should contain only synthetic data.
 
 Include the Windows and app versions, reproduction steps, and the expected and
 actual behavior. Remove private filenames and paths from logs and screenshots.
-Report security-related issues privately to kroxoko@gmail.com.
+Report security-related issues privately; see [SECURITY.md](SECURITY.md).
+
+## Automated checks
+
+The workflow builds and tests on Windows (with coverage and `.trx` results as a downloadable
+artifact) and runs a separate `audit` job that fails when a dependency has a known
+vulnerability. Dependabot proposes NuGet and Actions updates weekly; the Avalonia packages are
+grouped because they must move together.

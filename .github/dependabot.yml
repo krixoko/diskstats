@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Projects are listed by folder: Dependabot does not need to understand the .slnx solution.
+  - package-ecosystem: nuget
+    directories:
+      - "/src/*"
+      - "/tests/*"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # The Avalonia packages must move together; mixed versions fail at runtime.
+      avalonia:
+        patterns:
+          - "Avalonia*"
+          - "AvaloniaUI*"
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

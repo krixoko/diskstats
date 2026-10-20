@@ -87,6 +87,28 @@ public class SnapshotFormatTests
         return stream;
     }
 
+    [Fact]
+    public void Neuere_version_wird_als_solche_gemeldet_nicht_als_beschaedigung()
+    {
+        var stream = new MemoryStream();
+        using (var brotli = new System.IO.Compression.BrotliStream(stream,
+                   System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true))
+        using (var w = new BinaryWriter(brotli, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            w.Write("DSKS"u8);
+            w.Write(7);
+            w.Write(DateTime.UtcNow.Ticks);
+            w.Write(@"C:\irgendwo");
+            w.Write(10);
+            w.Write(10);
+        }
+        stream.Position = 0;
+
+        var ex = Assert.Throws<SnapshotVersionException>(() => SnapshotFormat.Read(stream));
+
+        Assert.Equal(7, ex.Version);
+    }
+
     [Theory]
     [InlineData(int.MaxValue, 10)]
     [InlineData(-1, 10)]
@@ -212,6 +234,8 @@ public class SnapshotFormatTests
                 for (int i = 0; i < restored.Count; i++) _ = restored.PathOf(i);
             }
             catch (InvalidDataException) { }
+            // Ein gekipptes Bit im Versionsfeld sieht aus wie eine neuere Fassung (2 -> 3).
+            catch (SnapshotVersionException) { }
         }
     }
 }

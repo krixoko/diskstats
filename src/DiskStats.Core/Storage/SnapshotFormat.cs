@@ -17,10 +17,30 @@ namespace DiskStats.Core.Storage;
 /// Folge dieser Bauweise: die Bytereihenfolge ist die der Plattform. Der Snapshot ist ein
 /// lokaler Cache, kein Austauschformat — das ist der bewusste Kompromiss.
 /// </summary>
+/// <summary>
+/// Der Snapshot stammt von einer neueren Fassung der Anwendung, die diese nicht lesen kann.
+/// Eine eigene Ausnahme, weil der Aufrufer den Fall anders behandeln muss als eine
+/// beschaedigte Datei: Sie ist intakt und darf nicht geloescht werden — sonst vernichtet
+/// ein Downgrade oder ein paralleler Start einer aelteren Fassung den ganzen Verlauf.
+/// Sie erbt nicht von <see cref="InvalidDataException"/> (das ist versiegelt) — und soll es auch
+/// nicht: Ein <c>catch (InvalidDataException)</c> steht in diesem Code fuer "Datei verwerfen".
+/// </summary>
+public sealed class SnapshotVersionException(int version)
+    : Exception($"Snapshot-Version {version} wird nicht unterstuetzt.")
+{
+    public int Version { get; } = version;
+}
+
 public static class SnapshotFormat
 {
     private static ReadOnlySpan<byte> Magic => "DSKS"u8;
     private const int CurrentVersion = 2;
+
+    /// <summary>
+    /// Bis hierher gilt eine hoehere Versionsnummer als "neuere Fassung". Darueber ist die Zahl
+    /// eher ein gekipptes Bit als eine Absicht — dann ist die Datei beschaedigt.
+    /// </summary>
+    private const int MaxPlausibleFutureVersion = 1000;
 
     public static void Write(NodeStore store, Stream target)
     {
@@ -57,7 +77,9 @@ public static class SnapshotFormat
     /// <summary>
     /// Liest einen Snapshot. Alles, was an der Datei nicht stimmt — abgeschnitten, verfaelscht,
     /// fremd — kommt als <see cref="InvalidDataException"/> zurueck, damit der Aufrufer einen
-    /// einzigen Fall behandeln muss: Datei verwerfen, neu scannen.
+    /// einzigen Fall behandeln muss: Datei verwerfen, neu scannen. Einzige Ausnahme ist ein
+    /// intakter Stand aus einer neueren Fassung (<see cref="SnapshotVersionException"/>): Der
+    /// wird nicht verworfen.
     /// </summary>
     public static NodeStore Read(Stream source)
     {
@@ -66,6 +88,7 @@ public static class SnapshotFormat
             return ReadCore(source);
         }
         catch (InvalidDataException) { throw; }
+        catch (SnapshotVersionException) { throw; }
         catch (Exception ex) when (ex is EndOfStreamException or IOException or OverflowException
             or ArgumentException or IndexOutOfRangeException or FormatException)
         {
@@ -97,6 +120,8 @@ public static class SnapshotFormat
             }
 
             version = r.ReadInt32();
+            if (version > CurrentVersion && version <= MaxPlausibleFutureVersion)
+                throw new SnapshotVersionException(version);
             if (version != 1 && version != CurrentVersion)
                 throw new InvalidDataException($"Snapshot-Version {version} wird nicht unterstuetzt.");
 

@@ -48,6 +48,50 @@ public class DiagnosticLogTests : IDisposable
         Assert.Contains("kein Zugriff", text);
     }
 
+    private static Exception Thrown()
+    {
+        try { throw new InvalidOperationException("aeussere Ursache", new IOException("innere Ursache")); }
+        catch (InvalidOperationException ex) { return ex; }
+    }
+
+    [Fact]
+    public void Schreibt_stacktrace_und_innere_ursache_mit()
+    {
+        DiagnosticLog.Write("Scan fehlgeschlagen", Thrown());
+
+        string text = File.ReadAllText(DiagnosticLog.FileFor(DateTime.Now));
+
+        // Die Kurzfassung bleibt in einer Zeile, der Rest steht darunter.
+        Assert.Contains("Scan fehlgeschlagen  |  InvalidOperationException: aeussere Ursache", text);
+        Assert.Contains("innere Ursache", text);
+        Assert.Contains("   at ", text);
+        Assert.Contains(nameof(Thrown), text);
+    }
+
+    [Fact]
+    public void Schreibt_die_kopfzeile_einmal_je_datei_und_sitzung()
+    {
+        DiagnosticLog.Write("eins");
+        DiagnosticLog.Write("zwei");
+
+        string[] lines = File.ReadAllLines(DiagnosticLog.FileFor(DateTime.Now));
+
+        Assert.StartsWith("=== DiskStats ", lines[0]);
+        Assert.Single(lines, l => l.StartsWith("=== DiskStats ", StringComparison.Ordinal));
+        Assert.Contains(".NET", lines[0]);
+    }
+
+    [Fact]
+    public void Kuerzt_einen_uferlosen_eintrag()
+    {
+        DiagnosticLog.Write("riesig", new InvalidOperationException(new string('x', DiagnosticLog.MaxEntryChars * 4)));
+
+        long size = new FileInfo(DiagnosticLog.FileFor(DateTime.Now)).Length;
+
+        Assert.True(size < DiagnosticLog.MaxEntryChars * 3, $"{size} Bytes fuer einen Eintrag");
+        Assert.Contains("[... gekuerzt]", File.ReadAllText(DiagnosticLog.FileFor(DateTime.Now)));
+    }
+
     [Fact]
     public void Behaelt_zwoelf_monate_und_verwirft_was_aelter_ist()
     {

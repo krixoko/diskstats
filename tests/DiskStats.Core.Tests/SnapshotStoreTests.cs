@@ -58,6 +58,71 @@ public class SnapshotStoreTests : IDisposable
         Assert.False(File.Exists(broken), "die beschaedigte Datei muss weg sein");
     }
 
+    /// <summary>Ein Kopf mit gueltiger Kennung und frei waehlbarer Version — mehr braucht der Test nicht.</summary>
+    private static void WriteHeaderWithVersion(string file, int version)
+    {
+        using var target = File.Create(file);
+        using var brotli = new System.IO.Compression.BrotliStream(target,
+            System.IO.Compression.CompressionLevel.Fastest);
+        using var w = new BinaryWriter(brotli, System.Text.Encoding.UTF8);
+        w.Write("DSKS"u8);
+        w.Write(version);
+        w.Write(DateTime.UtcNow.Ticks);
+        w.Write(@"C:\irgendwo");
+        w.Write(10);
+        w.Write(10);
+    }
+
+    [Fact]
+    public void Stand_einer_neueren_fassung_wird_nicht_geloescht()
+    {
+        using var tree = new TestTree();
+        tree.AddFile("a.bin", 500);
+        Assert.True(SnapshotStore.Save(Build(tree), new DateTime(2026, 9, 1, 12, 0, 0)));
+
+        // Eine neuere App hat danach geschrieben. Diese Fassung kann den Stand nicht lesen,
+        // darf ihn aber auch nicht als Muell behandeln — sonst ist der Verlauf nach einem
+        // Downgrade weg.
+        string newer = SnapshotStore.FileFor(tree.Root, new DateTime(2026, 9, 2, 12, 0, 0));
+        WriteHeaderWithVersion(newer, version: 3);
+
+        NodeStore? loaded = SnapshotStore.TryLoad(tree.Root, out DateTime written);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(new DateTime(2026, 9, 1, 12, 0, 0), written);
+        Assert.True(File.Exists(newer), "der Stand der neueren Fassung muss liegen bleiben");
+    }
+
+    [Fact]
+    public void Nur_staende_einer_neueren_fassung_bleiben_alle_erhalten()
+    {
+        using var tree = new TestTree();
+        var first = SnapshotStore.FileFor(tree.Root, new DateTime(2026, 9, 1, 12, 0, 0));
+        var second = SnapshotStore.FileFor(tree.Root, new DateTime(2026, 9, 2, 12, 0, 0));
+        WriteHeaderWithVersion(first, version: 3);
+        WriteHeaderWithVersion(second, version: 4);
+
+        Assert.Null(SnapshotStore.TryLoad(tree.Root, out _));
+
+        Assert.True(File.Exists(first));
+        Assert.True(File.Exists(second));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(int.MaxValue)]
+    public void Unplausible_version_gilt_als_beschaedigt_und_wird_verworfen(int version)
+    {
+        using var tree = new TestTree();
+        string broken = SnapshotStore.FileFor(tree.Root, new DateTime(2026, 9, 2, 12, 0, 0));
+        WriteHeaderWithVersion(broken, version);
+
+        Assert.Null(SnapshotStore.TryLoad(tree.Root, out _));
+
+        Assert.False(File.Exists(broken));
+    }
+
     [Fact]
     public void Legt_einen_scan_ab_und_holt_ihn_zurueck()
     {

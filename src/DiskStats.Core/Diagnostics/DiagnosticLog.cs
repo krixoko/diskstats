@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DiskStats.Core.Diagnostics;
@@ -24,7 +25,17 @@ public static class DiagnosticLog
     private const string Prefix = "diskstats-";
     private const string Suffix = ".log";
 
+    /// <summary>
+    /// Laenger wird ein einzelner Eintrag nicht. Ein Stacktrace mit tiefer Ursachenkette kann
+    /// Kilobytes fuellen, und ein Fehler in Dauerschleife soll die Obergrenze nicht in
+    /// wenigen Aufrufen erreichen.
+    /// </summary>
+    public const int MaxEntryChars = 8 * 1024;
+
     private static readonly Lock Gate = new();
+
+    /// <summary>Die Datei, in die in dieser Sitzung zuletzt die Kopfzeile geschrieben wurde.</summary>
+    private static string? _headedFile;
 
     public static string Folder { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -37,19 +48,58 @@ public static class DiagnosticLog
             .Append("  ")
             .Append(message);
 
-        if (error is not null) line.Append("  |  ").Append(error.GetType().Name).Append(": ").Append(error.Message);
+        // Die Kurzfassung bleibt in der ersten Zeile (greppbar), der Rest steht darunter:
+        // Ohne Stacktrace und Ursachenkette laesst sich aus einem Fehlerbericht nichts ableiten.
+        if (error is not null)
+        {
+            line.Append("  |  ").Append(error.GetType().Name).Append(": ").Append(Summary(error.Message));
+            line.AppendLine().Append(Indent(Truncate(error.ToString())));
+        }
 
         try
         {
             lock (Gate)
             {
                 Directory.CreateDirectory(Folder);
-                File.AppendAllText(FileFor(DateTime.Now), line.AppendLine().ToString(), Encoding.UTF8);
+                string file = FileFor(DateTime.Now);
+
+                // Je Sitzung und Datei einmal: Welche Fassung, welches System. Ein Bericht ohne
+                // Versionsnummer ist Raten.
+                var text = new StringBuilder();
+                if (!string.Equals(_headedFile, file, StringComparison.OrdinalIgnoreCase))
+                {
+                    text.AppendLine(SessionHeader());
+                    _headedFile = file;
+                }
+
+                File.AppendAllText(file, text.Append(line).AppendLine().ToString(), Encoding.UTF8);
             }
         }
         catch (IOException) { /* ein Protokoll darf niemals der Grund eines Absturzes sein */ }
         catch (UnauthorizedAccessException) { }
     }
+
+    /// <summary>Kopfzeile einer Sitzung: Anwendung, System, Laufzeit.</summary>
+    internal static string SessionHeader()
+    {
+        string version = typeof(DiagnosticLog).Assembly.GetName().Version?.ToString(3) ?? "?";
+
+        return $"=== DiskStats {version} | {RuntimeInformation.OSDescription} | "
+            + $"{RuntimeInformation.ProcessArchitecture} | {RuntimeInformation.FrameworkDescription} ===";
+    }
+
+    /// <summary>Die Kurzzeile bleibt kurz, auch wenn eine Meldung eine ganze Datei enthaelt.</summary>
+    private static string Summary(string message)
+    {
+        string oneLine = message.ReplaceLineEndings(" ");
+        return oneLine.Length <= 400 ? oneLine : oneLine[..400] + "...";
+    }
+
+    private static string Truncate(string text)
+        => text.Length <= MaxEntryChars ? text : text[..MaxEntryChars] + Environment.NewLine + "[... gekuerzt]";
+
+    private static string Indent(string text)
+        => "    " + text.ReplaceLineEndings(Environment.NewLine + "    ");
 
     public static string FileFor(DateTime moment)
         => Path.Combine(Folder, $"{Prefix}{moment:yyyy-MM}{Suffix}");

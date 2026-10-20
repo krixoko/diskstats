@@ -114,6 +114,9 @@ public static class SnapshotStore
         }
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
+        // Intakt, aber von einer neueren Fassung: nicht lesbar, doch auch nicht beschaedigt.
+        // Stehen lassen — die neuere Fassung braucht ihren Verlauf noch.
+        catch (SnapshotVersionException) { return null; }
         catch (InvalidDataException) { damaged = true; return null; }
     }
 

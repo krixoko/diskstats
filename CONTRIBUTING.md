@@ -73,9 +73,25 @@ Include the Windows and app versions, reproduction steps, and the expected and
 actual behavior. Remove private filenames and paths from logs and screenshots.
 Report security-related issues privately; see [SECURITY.md](SECURITY.md).
 
-## Automated checks
+## Checks
 
-The workflow builds and tests on Windows (with coverage and `.trx` results as a downloadable
-artifact) and runs a separate `audit` job that fails when a dependency has a known
-vulnerability. Dependabot proposes NuGet and Actions updates weekly; the Avalonia packages are
+There is no hosted CI; run the checks yourself before you send a change:
+
+```powershell
+dotnet build -c Release
+dotnet test -c Release --no-build
+dotnet list package --vulnerable --include-transitive
+```
+
+One test needs a real NTFS volume and is skipped by default: it attaches a virtual disk, fills it
+with hardlinks, compressed and sparse files, a junction and more, and compares the MFT scan with
+the directory scan. Run it in an elevated PowerShell when you touch `NtfsScanner` or
+`NtfsRecordParser`:
+
+```powershell
+$env:DISKSTATS_VHD_TESTS = "1"
+dotnet test tests/DiskStats.Core.Tests -c Release --filter "FullyQualifiedName~NtfsDifferentialTests"
+```
+
+Dependabot proposes NuGet updates weekly (`.github/dependabot.yml`); the Avalonia packages are
 grouped because they must move together.

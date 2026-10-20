@@ -63,6 +63,11 @@ deleted. This keeps a downgrade or a side-by-side older build from erasing the h
   `Add-Type` on every query. That is slow, depends on the language mode of the machine, and looks
   like a malware pattern to some scanners. The clean fix is to query WMI and the NVMe IOCTL in
   process; it needs real hardware to verify.
+- **Allocation of sparse files** differs between the scan methods: for an uncompressed sparse file
+  (10 MiB, 4 KiB written) the directory scan reports 0 bytes and the MFT scan 65,536. NTFS allocates
+  sparse files in 64 KiB units, so the MFT value looks right and the directory scan's
+  `FileCompressionInfo` value looks like an API quirk, but this is not settled. The opt-in
+  `NtfsDifferentialTests` names it as a known deviation; every other measured case agrees.
 - **Recycle Bin** uses `SHFileOperation`, which is bound to classic path lengths. When it fails for
   a path of 260+ characters the status line says so; `IFileOperation` would remove the limit.
 - **`MainWindow`** is still a large code-behind split over partial classes. `OperationGate` removed

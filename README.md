@@ -12,7 +12,6 @@ Built for Windows. Free and open source.
 [![MIT License](https://img.shields.io/badge/license-MIT-8b76b6)](LICENSE)
 ![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
-[![Build and test](https://github.com/krixoko/diskstats/actions/workflows/build.yml/badge.svg)](https://github.com/krixoko/diskstats/actions/workflows/build.yml)
 
 **[Get it free from the Microsoft Store](https://apps.microsoft.com/detail/9NP02X8BNMCT)**
 

@@ -522,6 +522,54 @@ public sealed class OperationTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Ordnerrefresh_schreibt_innerhalb_der_frist_keinen_neuen_stand()
+    {
+        MainWindow window = await Scan();
+        Assert.Single(SnapshotStore.History(Tree)); // der Scan sichert immer
+
+        File.WriteAllBytes(Path.Combine(Tree, "a.txt"), new byte[999]);
+        await window.RefreshFolderAsync(0);
+        await SnapshotWork(window);
+
+        Assert.Equal(1199, window.Store!.Size[0]); // der Refresh hat gewirkt (999 + 200) ...
+        Assert.Single(SnapshotStore.History(Tree)); // ... aber keinen weiteren 30-MB-Stand geschrieben
+    }
+
+    [AvaloniaFact]
+    public async Task Ordnerrefresh_sichert_wieder_wenn_der_letzte_stand_alt_genug_ist()
+    {
+        MainWindow window = await Scan();
+        SnapshotStore.Entry only = Assert.Single(SnapshotStore.History(Tree));
+        File.Move(only.Path, SnapshotStore.FileFor(Tree, DateTime.Now - SnapshotStore.RefreshInterval - TimeSpan.FromMinutes(5)));
+
+        await window.RefreshFolderAsync(0);
+        await SnapshotWork(window);
+
+        Assert.Equal(2, SnapshotStore.History(Tree).Count);
+    }
+
+    [AvaloniaFact]
+    public async Task Ueberlauf_bei_grossem_baum_loest_keinen_automatischen_neulauf_aus()
+    {
+        MainWindow window = await Scan();
+        var now = DateTime.UtcNow;
+
+        // Klein genug und noch nie gelaufen: Die Ueberwachung liest selbst neu ...
+        Assert.True(window.AcceptWatchBatch([Tree], overflow: true, now));
+        Assert.Equal(Loc.T("Watch_Overflow"), Control<TextBlock>(window, "StatusText").Text);
+
+        // ... aber nicht schon wieder, solange die Abkuehlzeit laeuft.
+        Assert.False(window.AcceptWatchBatch([Tree], overflow: true, now.AddMinutes(1)));
+        Assert.Equal(Loc.T("Watch_Missed"), Control<TextBlock>(window, "StatusText").Text);
+
+        // Ohne Ueberlauf ist alles wie gehabt.
+        Assert.True(window.AcceptWatchBatch([Tree], overflow: false, now.AddMinutes(1)));
+
+        // Danach wieder erlaubt.
+        Assert.True(window.AcceptWatchBatch([Tree], overflow: true, now + WatchPolicy.OverflowCooldown));
+    }
+
+    [AvaloniaFact]
     public async Task Live_ueberwachung_aktualisiert_geaenderten_ordner_und_laesst_sich_abschalten()
     {
         string folder = Path.Combine(Tree, "sub");

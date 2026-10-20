@@ -13,11 +13,15 @@ public partial class MainWindow
     private CancellationTokenSource? _refresh;
     private bool _closed;
 
+    /// <summary>Wann die Ueberwachung zuletzt nach einem Ueberlauf von sich aus alles neu gelesen hat.</summary>
+    private DateTime? _lastOverflowRescan;
+
     private void StartWatching()
     {
         _watcher?.Dispose();
         _watcher = null;
         _pendingRefresh.Clear();
+        _lastOverflowRescan = null;
         if (_closed || WatchToggle.IsChecked != true || _scanRoot.Length == 0) return;
         try
         {
@@ -27,9 +31,7 @@ public partial class MainWindow
             watcher.Changed += (folders, overflow) => Dispatcher.UIThread.Post(() =>
             {
                 if (!ReferenceEquals(watcher, _watcher) || _closed) return;
-                foreach (string folder in folders) _pendingRefresh.Add(folder);
-                if (overflow) StatusText.Text = Loc.T("Watch_Overflow");
-                DrainChanges();
+                if (AcceptWatchBatch(folders, overflow, DateTime.UtcNow)) DrainChanges();
             });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -37,6 +39,32 @@ public partial class MainWindow
             WatchToggle.IsChecked = false;
             StatusText.Text = Loc.T("Watch_Failed", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Nimmt eine Meldung der Ueberwachung entgegen. Gibt zurueck, ob etwas nachzuziehen ist.
+    ///
+    /// Ein Ueberlauf heisst, dass Windows Aenderungen verschluckt hat; die Meldung lautet dann nur
+    /// "die Wurzel". Bei einem grossen Baum oder kurz nach dem letzten Mal wird sie nicht
+    /// ausgefuehrt: Ein Laufwerk im Kreis zu scannen, nur weil darauf etwas geschieht, belastet
+    /// Platte und Rechner mehr, als es nutzt. Der Hinweis bleibt, der Benutzer aktualisiert selbst.
+    /// </summary>
+    internal bool AcceptWatchBatch(IReadOnlyList<string> folders, bool overflow, DateTime now)
+    {
+        if (overflow)
+        {
+            if (!WatchPolicy.ShouldRescanAfterOverflow(_store?.Count ?? 0, _lastOverflowRescan, now))
+            {
+                StatusText.Text = Loc.T("Watch_Missed");
+                return false;
+            }
+
+            _lastOverflowRescan = now;
+            StatusText.Text = Loc.T("Watch_Overflow");
+        }
+
+        foreach (string folder in folders) _pendingRefresh.Add(folder);
+        return true;
     }
 
     private void DrainChanges() => Guard(DrainChangesAsync(), "Aenderungen nachziehen");
@@ -57,6 +85,15 @@ public partial class MainWindow
         if (node >= 0) await RefreshFolderAsync(node);
         else if (_pendingRefresh.Count > 0) Dispatcher.UIThread.Post(DrainChanges);
     }
+
+    /// <summary>
+    /// Sichert nach einem Refresh nur, wenn der letzte Stand alt genug ist; sonst gar nichts, auch
+    /// kein Vergleich. Der Scan selbst sichert immer. Siehe <see cref="SnapshotStore.RefreshInterval"/>.
+    /// </summary>
+    private Task SaveAfterRefresh(NodeStore finished)
+        => SnapshotStore.IsDueAfterRefresh(finished.RootPath, DateTime.Now)
+            ? SaveAndCompare(finished)
+            : Task.CompletedTask;
 
     /// <summary>Der laufende Refresh, damit ein Scanstart auf sein Aufraeumen warten kann.</summary>
     private Task _refreshTask = Task.CompletedTask;
@@ -106,7 +143,7 @@ public partial class MainWindow
             StatusText.Text = Loc.T("Refresh_Done", result.ScannedPath);
             if (result.Errors > 0) StatusText.Text += " " + Loc.T("Stat_Unreadable", result.Errors);
             NodeStore finished = _store;
-            _snapshotWork = _snapshots.Enqueue(() => SaveAndCompare(finished));
+            _snapshotWork = _snapshots.Enqueue(() => SaveAfterRefresh(finished));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)

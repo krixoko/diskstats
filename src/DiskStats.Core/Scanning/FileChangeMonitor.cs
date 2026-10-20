@@ -26,7 +26,9 @@ public sealed class FileChangeMonitor : IDisposable
         {
             IncludeSubdirectories = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite,
-            InternalBufferSize = 32 * 1024,
+            // Das Maximum, das Windows erlaubt. Ein Puffer von 32 KB lief auf einem aktiven Laufwerk
+            // schon bei normaler Systemaktivitaet voll - und jeder Ueberlauf heisst "alles neu lesen".
+            InternalBufferSize = 64 * 1024,
         };
         _watcher.Created += OnChange;
         _watcher.Changed += OnChange;

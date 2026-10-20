@@ -304,6 +304,7 @@ public static class Loc
         ["Refresh_Folder"] = ("Refresh folder", "Ordner aktualisieren"),
         ["Watch_Title"] = ("Watch changes", "Änderungen überwachen"),
         ["Watch_Overflow"] = ("Change buffer overflow; checking the scan again.", "Änderungspuffer übergelaufen; Scan wird erneut geprüft."),
+        ["Watch_Missed"] = ("Too many changes at once — some were missed. Use “Refresh folder” to bring the view up to date.", "Zu viele Änderungen auf einmal — einige wurden verpasst. Mit „Ordner aktualisieren“ wird die Ansicht erneuert."),
         ["Watch_Failed"] = ("Cannot watch this folder: {0}", "Ordner kann nicht überwacht werden: {0}"),
         ["Refresh_Running"] = ("Refreshing {0}…", "{0} wird aktualisiert…"),
         ["Refresh_Done"] = ("Refreshed: {0}", "Aktualisiert: {0}"),

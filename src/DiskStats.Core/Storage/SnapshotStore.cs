@@ -58,6 +58,21 @@ public static class SnapshotStore
         => Path.Combine(Folder,
             $"{KeyOf(scanRoot)}-{moment.ToString(Stamp, CultureInfo.InvariantCulture)}{Extension}");
 
+    /// <summary>
+    /// So selten wird nach einem Ordner-Refresh gesichert. Ein Refresh ist keine Messung fuer den
+    /// Verlauf: Mit Live-Ueberwachung folgt er dem naechsten im Sekundentakt, und jeder Stand
+    /// kostet bis zu 30 MB Schreiben, den Vergleich mit dem vorigen und einen der sechs Plaetze
+    /// je Pfad — der Wochenverlauf wuerde von Minutenstaenden verdraengt.
+    /// </summary>
+    public static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(1);
+
+    /// <summary>Ob nach einem Refresh ein neuer Stand faellig ist: noch keiner da oder der juengste alt genug.</summary>
+    public static bool IsDueAfterRefresh(string scanRoot, DateTime now)
+    {
+        IReadOnlyList<Entry> history = History(scanRoot);
+        return history.Count == 0 || now - history[0].Written >= RefreshInterval;
+    }
+
     public static bool Save(NodeStore store) => Save(store, DateTime.Now);
 
     public static bool Save(NodeStore store, DateTime moment)

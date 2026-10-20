@@ -124,6 +124,38 @@ public class SnapshotStoreTests : IDisposable
     }
 
     [Fact]
+    public void Nach_einem_refresh_ist_ohne_vorhandenen_stand_einer_faellig()
+    {
+        using var tree = new TestTree();
+
+        Assert.True(SnapshotStore.IsDueAfterRefresh(tree.Root, new DateTime(2026, 9, 1, 12, 0, 0)));
+    }
+
+    [Fact]
+    public void Nach_einem_refresh_wird_erst_nach_der_frist_wieder_gesichert()
+    {
+        using var tree = new TestTree();
+        var written = new DateTime(2026, 9, 1, 12, 0, 0);
+        Given(tree.Root, written);
+
+        Assert.False(SnapshotStore.IsDueAfterRefresh(tree.Root, written.AddMinutes(1)));
+        Assert.False(SnapshotStore.IsDueAfterRefresh(tree.Root, written + SnapshotStore.RefreshInterval - TimeSpan.FromSeconds(1)));
+        Assert.True(SnapshotStore.IsDueAfterRefresh(tree.Root, written + SnapshotStore.RefreshInterval));
+    }
+
+    [Fact]
+    public void Massgeblich_ist_der_juengste_stand_dieses_pfads()
+    {
+        using var tree = new TestTree();
+        using var other = new TestTree();
+        var now = new DateTime(2026, 9, 1, 12, 0, 0);
+        Given(tree.Root, now.AddDays(-3));
+        Given(other.Root, now.AddMinutes(-1)); // ein anderer Pfad zaehlt nicht
+
+        Assert.True(SnapshotStore.IsDueAfterRefresh(tree.Root, now));
+    }
+
+    [Fact]
     public void Legt_einen_scan_ab_und_holt_ihn_zurueck()
     {
         using var tree = new TestTree();

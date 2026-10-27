@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <!-- Avalonia.Headless.XUnit setzt auf xunit v3; v2 daneben ergibt doppelte Typen. -->
-    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.4" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
